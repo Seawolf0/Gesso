@@ -1,0 +1,15 @@
+# macOS
+.DS_Store
+
+# Xcode per-user state
+xcuserdata/
+*.xcuserstate
+
+# Xcode / Swift build output
+DerivedData/
+build/
+.build/
+*.xcresult
+*.xcarchive
+*.dSYM/
+*.dSYM.zip

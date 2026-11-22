@@ -1,0 +1,80 @@
+/*
+ * Gesso — dark mode for native Canvas pages.
+ *
+ * Injected by the manifest (content_scripts.css) at document_start, so it is
+ * not subject to the page's CSP and applies before first paint. Every rule is
+ * scoped to :root[data-gesso-dark], which content/native/dark-mode.js sets
+ * synchronously from a localStorage mirror; without it this file does nothing.
+ *
+ * How it works:
+ *   R — the page filter: invert, rotate hue back, soften contrast. White
+ *       becomes near-black, dark text near-white, and every color keeps its
+ *       hue (Canvas blue stays blue, just lighter). Works on legacy pages and
+ *       InstUI's generated class names alike, with no per-page selectors.
+ *   M — the exact inverse of R, applied to things that must look natural
+ *       (photos, video, cross-origin frames such as YouTube, LTI tools and PDF
+ *       previews, the Gesso launcher). R∘M = identity, so they render as-is.
+ *   A `filter` on the document root does not create a containing block, so
+ *   fixed headers and dialogs keep working (Filter Effects §filter property).
+ *
+ * Limit (measured in WebKit): hue-rotate pushes vivid colors out of gamut and
+ * the browser clips between the page filter and the inverse, so strongly
+ * saturated reds and blues in photos come back ~8–12% less saturated
+ * (e.g. 200,60,50 → 181,73,64); greens and muted tones are near-exact. No
+ * compensation (saturate before/after, reordering) removes it; contrast .92
+ * is the measured compromise between that and a pure-black page.
+ *
+ * R = invert(1) hue-rotate(180deg) contrast(.92)
+ * M = contrast(1.08696) invert(1) hue-rotate(180deg)    (1/.92 = 1.08696…)
+ */
+
+@media screen and (forced-colors: none) {
+  :root[data-gesso-dark] {
+    filter: invert(1) hue-rotate(180deg) contrast(.92);
+    /* Paint the root white so the inverted page has no light gaps (short pages, overscroll). */
+    background-color: #fff !important;
+    /* Keep native controls light: they're inverted to dark with the page. */
+    color-scheme: light only;
+  }
+
+  /* Natural: everything that renders a raster image or content we can't restyle.
+     - media elements and cross-origin frames;
+     - SVGs that embed an <image> (InstUI avatars can be SVG);
+     - [data-gesso-natural]: elements whose *computed* background-image is a raster
+       url() — course card/hero images, avatar spans… Set by dark-mode.js
+       (Canvas's class names are generated, so we can't list them);
+     - the global navigation (brand colors) and the Gesso launcher.
+     :where() keeps these at zero extra specificity, so the exceptions below win. */
+  :root[data-gesso-dark] :where(
+    img, picture, video, canvas, embed, object, iframe:not([data-gesso-frame="same"]),
+    svg:has(image), [data-gesso-natural], .ic-app-header, #gesso-launcher
+  ) {
+    filter: contrast(1.08696) invert(1) hue-rotate(180deg);
+  }
+
+  /* Never apply M twice: anything natural nested inside something natural
+     (an avatar inside the nav, an <img> inside a course card…). */
+  :root[data-gesso-dark] :where(
+    picture, object, svg:has(image), [data-gesso-natural], .ic-app-header, #gesso-launcher
+  ) :where(img, picture, video, canvas, embed, object, iframe, svg, [data-gesso-natural]) {
+    filter: none;
+  }
+
+  /* Canvas equation images are black on transparent: inverted, they read white on dark. */
+  :root[data-gesso-dark] img:is(.equation_image, [src*="/equation_images/"], [data-equation-content]) {
+    filter: none;
+  }
+
+  /* Opt-in: darken PDF / document previews (also inverts any images inside them). */
+  :root[data-gesso-dark][data-gesso-dark-pdf] :where(
+    iframe[src*="canvadoc"], iframe[src*="/preview"], iframe.ef-file-preview-frame,
+    #doc_preview iframe, object[type="application/pdf"], embed[type="application/pdf"]
+  ) {
+    filter: none;
+  }
+
+  /* Opt-out: keep the rich content editor light, so it looks like the published page. */
+  :root[data-gesso-dark]:not([data-gesso-dark-editor]) iframe:is(.tox-edit-area__iframe, [id$="_ifr"]) {
+    filter: contrast(1.08696) invert(1) hue-rotate(180deg);
+  }
+}

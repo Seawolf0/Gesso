@@ -1,0 +1,181 @@
+<!doctype html>
+<!--
+  Dev fixture: a stand-in for a native Canvas page, to check the dark mode for native pages
+  (native/dark.css + native/dark-mode.js) headlessly. Not a copy of Canvas's
+  markup: it reproduces the shapes that matter (fixed header, photo, equation
+  image, code, same-origin editor iframe with an image, cross-origin frame,
+  PDF preview frame, fixed footer, short page).
+    ?light=1   start with the Gesso theme light (dark mode follows → off)
+    ?off=assignments   mark that page type off
+    ?path=/courses/1/assignments/5   pretend location for page-type detection
+    ?ed=0  keep the editor light   ?pdf=1  dark PDF previews   ?mode=on|off|match
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Native Canvas fixture</title>
+  <link rel="stylesheet" href="../../extension/src/content/native/dark.css">
+  <style>
+    body { margin: 0; font: 14px/1.5 -apple-system, system-ui, sans-serif; color: #2d3b45; background: #fff; }
+    #header { position: fixed; top: 0; left: 0; bottom: 0; width: 84px; background: #e21833; color: #fff; display: flex; flex-direction: column; align-items: center; padding-top: 12px; gap: 12px; }
+    #header .nav { width: 40px; height: 40px; border-radius: 8px; background: rgba(255,255,255,.2); }
+    main { margin-left: 84px; padding: 24px 32px; max-width: 900px; }
+    h1 { margin: 0 0 12px; color: #2d3b45; }
+    a { color: #0374b5; }
+    .btn-primary { background: #0374b5; color: #fff; border: 0; padding: 8px 14px; border-radius: 4px; }
+    .muted-box { background: #f5f5f5; border: 1px solid #c7cdd1; padding: 12px; border-radius: 4px; }
+    pre { background: #f5f5f5; padding: 12px; border-radius: 4px; }
+    .kw { color: #a626a4; } .str { color: #50a14f; } .num { color: #986801; }
+    iframe { width: 100%; height: 120px; border: 1px solid #c7cdd1; }
+    .card { width: 240px; border: 1px solid #c7cdd1; border-radius: 6px; overflow: hidden; display: inline-block; vertical-align: top; margin-right: 16px; }
+    .card-img { position: relative; height: 100px; background: url(photo.png) center / cover; }
+    .card-hero { position: absolute; inset: 0; background: rgba(3, 116, 181, .25); }
+    .card-kebab { position: absolute; top: 6px; right: 6px; background: none; border: 0; color: #fff; font-size: 20px; }
+    .card-body { padding: 8px 12px; }
+    .avatar { display: inline-block; width: 40px; height: 40px; border-radius: 50%; background: url(photo.png) 20% center / 300% 100%; vertical-align: middle; }
+    .banner { background: url(photo.png) center / cover; padding: 16px; color: #2d3b45; }
+    .icon-bg { display: inline-block; width: 24px; height: 24px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 12h16' stroke='black' stroke-width='3'/%3E%3C/svg%3E"); }
+    .later-bg { background: url(photo.png) 20% center / 300% 100%; }
+    .sticky-sub { position: sticky; top: 0; background: #fff; border-bottom: 1px solid #c7cdd1; padding: 6px 0; z-index: 2; }
+    #toast { position: fixed; top: 16px; right: 16px; background: #fff; border: 1px solid #c7cdd1; padding: 8px 12px; border-radius: 4px; z-index: 5; }
+    #modal { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: grid; place-items: center; z-index: 4; }
+    #modal[hidden] { display: none; }
+    #modal > div { background: #fff; padding: 16px; border-radius: 6px; }
+    .card-img .pinned { position: fixed; bottom: 60px; left: 120px; background: #fff; padding: 2px 6px; }
+    #footer { position: fixed; right: 0; bottom: 0; left: 84px; height: 40px; background: #f5f5f5; border-top: 1px solid #c7cdd1; display: flex; align-items: center; padding: 0 16px; }
+  </style>
+  <script src="mock-env.js"></script>
+  <script>
+    const q = new URLSearchParams(location.search);
+    const settings = { theme: q.get('light') ? 'light' : 'dark', nativeDarkOff: q.get('off') ? [q.get('off')] : [],
+      darkEditor: q.get('ed') !== '0', darkPdfs: q.get('pdf') === '1', ...(q.get('mode') ? { nativeDark: q.get('mode') } : {}) };
+    window.__mockStore.settings = settings;
+    window.__fakePath = q.get('path') || '/courses/1/assignments/5';
+  </script>
+  <script src="../../extension/src/shared/namespace.js"></script>
+  <script src="../../extension/src/shared/config.js"></script>
+  <script src="../../extension/src/shared/settings.js"></script>
+  <script src="../../extension/src/content/native/dark-mode.js"></script>
+  <script src="../../extension/src/content/native/launcher.js"></script>
+  <script>
+    // Pretend location for page-type detection, then run the same steps as main.js.
+    Gesso.nativeDark.path = () => window.__fakePath;
+    Gesso.settings.writeNativeDarkMirror({ ...Gesso.settings.DEFAULTS, ...settings });
+    Gesso.nativeDark.applyEarly();
+    Gesso.settings.load().then((s) => { Gesso.nativeDark.start(s); Gesso.launcher.mountWhenReady({ onDashboard: false }); });
+  </script>
+</head>
+<body>
+  <nav id="header" class="ic-app-header" aria-label="Global"><div class="nav"></div><div class="nav"></div><div class="nav"></div></nav>
+  <main>
+    <div class="sticky-sub" id="sticky">Sticky subheader (like Canvas's course nav)</div>
+    <h1>Lab 9: Recursion</h1>
+    <p>Due <strong>Fri, Nov 20</strong> · 20 points · <a href="#">Submission details</a></p>
+    <p><button class="btn-primary">Start Assignment</button></p>
+    <div class="muted-box">Instructions box with a light gray background and a border.</div>
+    <p>Photo (must keep its real colors): <img id="photo" src="photo.png" alt="photo" width="180" height="60"></p>
+    <p>Equation (black on transparent, should read light): <img id="eq" class="equation_image" alt="x^2" src="equation.png" width="60" height="24"></p>
+    <pre><code><span class="kw">public int</span> fib(<span class="kw">int</span> n) { <span class="kw">return</span> n &lt; <span class="num">2</span> ? n : fib(n - <span class="num">1</span>) + fib(n - <span class="num">2</span>); } <span class="str">"done"</span></code></pre>
+    <p>Rich content editor (same-origin about:blank iframe):</p>
+    <iframe id="editor_ifr" class="tox-edit-area__iframe" title="Editor"></iframe>
+    <p>External video (cross-origin, stays natural):</p>
+    <iframe id="ext" src="data:text/html,%3Cbody%20style%3D%22margin%3A0%3Bbackground%3A%23ffffff%3Bcolor%3A%23000%22%3E%3Ch3%3EYouTube%20player%3C%2Fh3%3E%3C%2Fbody%3E" title="External"></iframe>
+    <p>Document preview (PDF):</p>
+    <iframe id="pdf" class="ef-file-preview-frame" src="data:text/html,%3Cbody%20style%3D%22margin%3A0%3Bbackground%3A%23ffffff%22%3E%3Cp%3EPDF%20page%3C%2Fp%3E%3C%2Fbody%3E" title="PDF"></iframe>
+    <h2>Images painted as CSS backgrounds</h2>
+    <div class="card" id="card1"><div class="card-img" id="cardimg"><div class="card-hero"></div><button class="card-kebab" aria-label="Card options">⋮</button></div><div class="card-body"><a href="#">CSCI110</a></div></div>
+    <div class="card"><div class="card-img" id="cardnest" style="background: none"><img id="nestimg" src="photo.png" width="240" height="100" alt=""></div><div class="card-body">Card with an &lt;img&gt;</div></div>
+    <p>Announcement by <span class="avatar" id="avatar" role="img" aria-label="Instructor"></span> Dr. Patel ·
+      SVG avatar <svg id="svgav" width="40" height="40" viewBox="0 0 40 40"><clipPath id="c"><circle cx="20" cy="20" r="20"/></clipPath><image href="photo.png" x="-6" y="0" width="120" height="40" preserveAspectRatio="none" clip-path="url(#c)"/></svg>
+      · icon <span class="icon-bg" id="iconbg"></span></p>
+    <div class="card"><div class="card-img" id="cardfixed"><span class="pinned" id="pinned">pinned</span></div><div class="card-body">Card holding a fixed element</div></div>
+    <div class="banner" id="banner">A content banner with a decorative photo background and plenty of text, which must stay with the page so it remains readable in dark mode.</div>
+    <p id="laterhost">Added later: </p>
+    <p>Gets its background later: <span id="laterclass" style="display:inline-block;width:40px;height:40px"></span></p>
+    <div style="height: 1400px"></div>
+  </main>
+  <div id="footer">Fixed footer</div>
+  <div id="toast" role="status">Saved</div>
+  <div id="modal" hidden><div role="dialog" aria-label="Dialog">Modal dialog</div></div>
+  <script>
+    // Fill the editor like TinyMCE does: write into the about:blank document.
+    const ed = document.getElementById('editor_ifr');
+    const doc = ed.contentDocument;
+    doc.open();
+    doc.write('<!doctype html><html><head><style>body{margin:8px;font:14px system-ui;color:#2d3b45;background:#fff}</style></head><body><p>Editing <b>content</b> with a photo: <img id="edphoto" src="' + new URL('photo.png', location.href) + '" width="90" height="30"></p></body></html>');
+    doc.close();
+    ed.dispatchEvent(new Event('load'));
+    // Content that arrives later (Canvas renders much of the page with React after load).
+    setTimeout(() => {
+      document.getElementById('laterhost').insertAdjacentHTML('beforeend', '<span class="card" id="card2"><span class="card-img" id="cardlate" style="display:block"></span></span>');
+      document.getElementById('laterclass').classList.add('later-bg');
+    }, 300);
+
+    // ?check=1 — regression checks for dev/tools/test.sh (results in window.__nativeChecks).
+    if (q.get('check')) {
+      setTimeout(async () => {
+        const out = { pass: [], fail: [], probes: [] };
+        const ok = (name, cond, info = '') => (cond ? out.pass : out.fail).push(info ? `${name} (${info})` : name);
+        const host = document.getElementById('gesso-launcher');
+        const visible = (label) => {
+          const r = host?.getBoundingClientRect();
+          const inView = !!r && r.width > 0 && r.right <= innerWidth + 0.5 && r.bottom <= innerHeight + 0.5 && r.left >= 0 && r.top >= 0;
+          const near = !!r && innerWidth - r.right < 40 && innerHeight - r.bottom < 40;
+          const hit = !!r && document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) === host;
+          ok(`launcher visible at bottom-right ${label}`, inView && near && hit, r ? `${Math.round(r.left)},${Math.round(r.top)} ${Math.round(r.width)}×${Math.round(r.height)} hit=${hit}` : 'missing');
+          const buttons = host ? [...host.shadowRoot.querySelectorAll('button')] : [];
+          ok(`launcher buttons on screen ${label}`, buttons.length === 2 && buttons.every((b) => { const q = b.getBoundingClientRect(); return q.width > 0 && q.top >= 0 && q.bottom <= innerHeight && q.left >= 0 && q.right <= innerWidth; }), `${buttons.length} buttons`);
+        };
+        const fixedOk = (label) => {
+          const f = document.getElementById('footer').getBoundingClientRect();
+          const hd = document.getElementById('header').getBoundingClientRect();
+          ok(`fixed footer + header stay in the viewport ${label}`, Math.abs(f.bottom - innerHeight) < 1 && Math.abs(hd.top) < 1, `footer ${Math.round(f.bottom)}/${innerHeight}`);
+          const t = document.getElementById('toast').getBoundingClientRect();
+          ok(`fixed toast stays top-right ${label}`, Math.abs(t.top - 16) < 1 && Math.abs(innerWidth - 16 - t.right) < 1);
+          const modal = document.getElementById('modal');
+          modal.hidden = false;
+          const m = modal.getBoundingClientRect();
+          ok(`fixed modal overlay covers the viewport ${label}`, Math.abs(m.top) < 1 && Math.abs(m.height - innerHeight) < 1 && Math.abs(m.width - innerWidth) < 1);
+          modal.hidden = true;
+        };
+        const dark = document.documentElement.hasAttribute('data-gesso-dark');
+        visible(dark ? '(dark, top)' : '(light, top)');
+        fixedOk('(top)');
+        scrollTo(0, 1200);
+        await new Promise((r) => setTimeout(r, 50));
+        visible('(after scrolling)');
+        fixedOk('(after scrolling)');
+        ok('sticky subheader sticks after scrolling', Math.abs(document.getElementById('sticky').getBoundingClientRect().top) < 1);
+        scrollTo(0, 0);
+        await new Promise((r) => setTimeout(r, 50));
+        if (dark) {
+          const nat = (id) => document.getElementById(id).hasAttribute('data-gesso-natural');
+          ok('course card background marked natural', nat('cardimg'));
+          ok('avatar background marked natural', nat('avatar'));
+          ok('card added later marked natural', nat('cardlate'));
+          ok('background added by a later class change marked natural', nat('laterclass'));
+          ok('text-heavy banner stays with the page', !nat('banner'));
+          ok('SVG icon background stays with the page', !nat('iconbg'));
+          ok('card without a background not marked', !nat('cardnest'));
+          ok('background element holding fixed content not marked (would trap it)', !nat('cardfixed'));
+          const pr = document.getElementById('pinned').getBoundingClientRect();
+          ok('fixed element inside a card stays in the viewport', Math.abs(innerHeight - 60 - pr.bottom) < 1, `bottom ${Math.round(pr.bottom)}`);
+          const filt = (el) => getComputedStyle(el).filter;
+          ok('no double inversion inside a natural card', filt(document.querySelector('#cardimg .card-hero')) === 'none' && filt(document.querySelector('#cardimg .card-kebab')) === 'none');
+          ok('SVG with <image> is natural', filt(document.getElementById('svgav')).includes('invert'));
+          // Pixel probes, checked against the screenshot by dev/tools/check-native.py (red band of photo.png).
+          const c = (id, dx = 20, dy = 20) => { const r = document.getElementById(id).getBoundingClientRect(); return [Math.round(r.left + dx), Math.round(r.top + dy)]; };
+          out.probes = [
+            ['img photo', ...c('photo', 30, 30)], ['course card background', ...c('cardimg', 30, 70)], ['img inside a card', ...c('nestimg', 30, 50)],
+            ['avatar background', ...c('avatar')], ['SVG avatar', ...c('svgav', 14, 20)], ['card added later', ...c('cardlate', 30, 70)],
+            ['background from a later class', ...c('laterclass')],
+          ].map(([name, x, y]) => ({ name, x, y,
+            // The course card has a 25% course-color overlay (like Canvas's): its natural color is the blend.
+            expect: name === 'course card background' ? [151, 74, 83] : [200, 60, 50] }));
+        }
+        window.__nativeChecks = out;
+      }, 900);
+    }
+  </script>
+</body>
+</html>

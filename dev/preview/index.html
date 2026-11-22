@@ -1,0 +1,62 @@
+<!doctype html>
+<!--
+  Dev preview of the Gesso UI with mock Canvas data — no Canvas login needed.
+  Open this file directly in Safari. Query params:
+    ?theme=light        start in light theme
+    ?latency=800        simulated API latency (ms)
+    ?fail=auth          simulate being logged out
+    ?test=1             run unit tests (results in the console + window.__testResults)
+    ?uicheck=1          run interaction checks on the live app (window.__uiChecks)
+    ?health=1           never-blank checks: page replaced, cache restore, dead extension, render errors (window.__healthChecks)
+    ?a11y=1             accessibility audit of every route + main dialogs (window.__a11y)
+  Regenerate the script list after editing manifest.json: dev/tools/gen-preview-scripts.sh
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gesso · preview</title>
+  <style>html, body { margin: 0; background: #0b0d12; }</style>
+  <script src="mock-env.js"></script>
+  <script src="scripts.generated.js"></script>
+  <script>
+    for (const src of window.__GESSO_SCRIPTS) document.write(`<script src="../../extension/${src}"><\/script>`);
+  </script>
+</head>
+<body>
+  <div id="host"></div>
+  <script>
+    (async () => {
+      if (new URLSearchParams(location.search).get('test')) {
+        const s = document.createElement('script');
+        s.src = '../tests/tests.js';
+        document.body.append(s);
+        return;
+      }
+      const route = new URLSearchParams(location.search).get('route'); // e.g. ?route=/courses/101/files
+      if (route) location.hash = route;
+      // ?noanim=1 — headless screenshots: offscreen WebKit windows don't advance CSS animations.
+      if (new URLSearchParams(location.search).get('noanim')) Gesso.styles.sheets.push('*,*::before,*::after{animation:none!important;transition:none!important}');
+      const host = document.getElementById('host');
+      const shadow = host.attachShadow({ mode: 'open' });
+      await Gesso.app.start({ host, shadow }, { bootAt: performance.now() });
+      if (new URLSearchParams(location.search).get('health')) {
+        const t = document.createElement('script');
+        t.src = '../tests/health-checks.js';
+        document.body.append(t);
+      }
+      if (new URLSearchParams(location.search).get('a11y')) {
+        const t = document.createElement('script');
+        t.src = '../tests/a11y-checks.js';
+        document.body.append(t);
+      }
+      if (new URLSearchParams(location.search).get('uicheck')) {
+        const t = document.createElement('script');
+        t.src = '../tests/ui-checks.js';
+        document.body.append(t);
+      }
+    })();
+    window.__ready = () => window.Gesso && Gesso.store && !Gesso.store.get().sync.running && Gesso.store.get().data.coursework != null;
+  </script>
+</body>
+</html>

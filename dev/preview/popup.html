@@ -1,0 +1,55 @@
+<!doctype html>
+<!--
+  Dev preview of the toolbar popup (extension/src/popup/). Runs a mock sync,
+  writes the real summary (content/data/summary.js) into mock storage, then
+  loads the real popup.js against it.
+    ?state=empty       nothing synced yet
+    ?state=loggedout   last sync failed with "logged out"
+    ?state=stale       last sync 2 days ago
+    ?theme=light
+  Clicks are captured in window.__opened instead of opening tabs.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Popup · preview</title>
+  <link rel="stylesheet" href="../../extension/src/popup/popup.css">
+  <style>html { background: #000; } body { margin: 0; }</style>
+  <script src="mock-env.js"></script>
+  <script src="scripts.generated.js"></script>
+  <script>
+    for (const src of window.__GESSO_SCRIPTS) document.write(`<script src="../../extension/${src}"><\/script>`);
+  </script>
+</head>
+<body>
+  <main id="app"></main>
+  <script>
+    (async () => {
+      const q = new URLSearchParams(location.search);
+      window.__opened = [];
+      browser.tabs = {
+        query: async () => [],
+        create: async (o) => { window.__opened.push(o.url); },
+        update: async (id, o) => { window.__opened.push(o.url); },
+      };
+      browser.windows = { update: async () => {} };
+      window.close = () => { window.__closed = true; };
+      if (q.get('theme')) await browser.storage.local.set({ settings: { ...Gesso.settings.DEFAULTS, theme: q.get('theme') } });
+      const state = q.get('state');
+      if (state !== 'empty') {
+        window.__mockLatency = 0;
+        await Gesso.sync.refresh({ force: true });
+        const summary = Gesso.summary.compute(Gesso.store.get());
+        if (state === 'loggedout') summary.loggedOut = true;
+        if (state === 'stale') summary.syncedAt = Date.now() - 2 * 86400e3;
+        await browser.storage.local.set({ 'popup.summary': summary });
+        window.__summary = summary;
+      }
+      const s = document.createElement('script');
+      s.src = '../../extension/src/popup/popup.js';
+      s.onload = () => setTimeout(() => { window.__popupReady = true; }, 50);
+      document.body.append(s);
+    })();
+  </script>
+</body>
+</html>

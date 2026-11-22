@@ -1,0 +1,13 @@
+{
+  // Editor-only type checking for the plain-JS extension (no build step).
+  // VS Code reads this automatically; files opt in with `// @ts-check`.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "checkJs": false,
+    "allowJs": true,
+    "noEmit": true,
+    "strict": false
+  },
+  "include": ["extension/src/**/*.js", "dev/types/*.d.ts"]
+}
