@@ -8,6 +8,8 @@
     ?state=stale       last sync 2 days ago
     ?theme=light
     ?themeId=linen     a theme preset
+    ?live=1            after it renders, change the theme with storage events off;
+                       the popup must repaint from the runtime ping alone (window.__liveResult)
   Clicks are captured in window.__opened instead of opening tabs.
 -->
 <html lang="en">
@@ -48,7 +50,17 @@
       }
       const s = document.createElement('script');
       s.src = '../../extension/src/popup/popup.js';
-      s.onload = () => setTimeout(() => { window.__popupReady = true; }, 50);
+      s.onload = () => setTimeout(async () => {
+        window.__popupReady = true;
+        if (q.get('live')) {
+          window.__mockStorageEvents = 'none';
+          await Gesso.settings.update({ themeId: 'paper', theme: 'light' });
+          const want = Gesso.themes.resolve({ themeId: 'paper' }, 'light');
+          await new Promise((r) => setTimeout(r, 300));
+          const root = document.documentElement;
+          window.__liveResult = root.getAttribute('data-theme') === 'light' && root.style.getPropertyValue('--surface') === want.surface && root.style.getPropertyValue('--accent') === want.accent;
+        }
+      }, 50);
       document.body.append(s);
     })();
   </script>

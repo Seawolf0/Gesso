@@ -29,11 +29,20 @@ cd "$ROOT"
 "$BIN" "dev/preview/index.html?test=1" --wait "window.__testResults" --eval "JSON.stringify(window.__testResults)" | grep -E 'FAIL|passed|\[eval\]|uncaught|unhandled' || true
 # Interaction checks on the running app: palette, shortcuts, settings, popup summary.
 echo "› UI checks"
+# Served on localhost, not file://: the cross-tab settings ping (BroadcastChannel)
+# needs a real origin; WebKit doesn't deliver it on file:// (an opaque origin).
+PORT=$((20000 + $$ % 20000))
+python3 -m http.server "$PORT" --bind 127.0.0.1 --directory "$ROOT" >/dev/null 2>&1 &
+SERVER=$!
+trap 'kill $SERVER 2>/dev/null' EXIT
+for _ in 1 2 3 4 5 6 7 8 9 10; do curl -sf "http://127.0.0.1:$PORT/dev/preview/index.html" >/dev/null && break; sleep 0.3; done
 # Offscreen WebKit stretches short timers to 1 s after a few seconds, so this needs more than the default 15 s.
 UI_OUT="${TMPDIR:-/tmp}/gesso-dev/ui-checks.txt"
-"$BIN" "dev/preview/index.html?uicheck=1&noanim=1&latency=0" --timeout 240 --wait "window.__uiChecks" --eval "JSON.stringify(window.__uiChecks)" > "$UI_OUT" 2>&1 || true
+"$BIN" "http://127.0.0.1:$PORT/dev/preview/index.html?uicheck=1&noanim=1&latency=0" --timeout 240 --wait "window.__uiChecks" --eval "JSON.stringify(window.__uiChecks)" > "$UI_OUT" 2>&1 || true
 grep -E 'FAIL|\[eval\]|uncaught|unhandled|\[timeout\]' "$UI_OUT"
 grep -q '"failed":0' "$UI_OUT" || fail=1
+# Stop the server now: later steps 'wait' for their own background jobs.
+kill $SERVER 2>/dev/null || true; wait $SERVER 2>/dev/null || true; trap - EXIT
 # Never blank: page replaced, document cleared, cache restore, dead extension, render errors.
 echo "› Never-blank checks"
 H_OUT="${TMPDIR:-/tmp}/gesso-dev/health-checks.txt"
@@ -41,13 +50,13 @@ H_OUT="${TMPDIR:-/tmp}/gesso-dev/health-checks.txt"
 grep -E 'FAIL|\[eval\]|uncaught|unhandled|\[timeout\]' "$H_OUT"
 grep -q '"failed":0' "$H_OUT" || fail=1
 # Accessibility audit: every route + main dialogs, for every built-in
-# theme in dark and light (four runs at a time).
+# theme in dark and light (six runs at a time).
 echo "› Accessibility audit"
-THEME_IDS="$(sed -n "s/^ *id: '\([a-z]*\)', name: .*/\1/p" "$ROOT/extension/src/shared/themes.js")"
+THEME_IDS="$(sed -n "s/^ *id: '\([a-z0-9]*\)', group: .*/\1/p" "$ROOT/extension/src/shared/themes.js")"
 for th in $THEME_IDS; do
   for t in dark light; do
     "$BIN" "dev/preview/index.html?a11y=1&noanim=1&latency=0&theme=$t&themeId=$th" --timeout 150 --wait "window.__a11y" --eval "window.__a11y.count" > "${TMPDIR:-/tmp}/gesso-dev/a11y-$th-$t.txt" 2>&1 &
-    while [ "$(jobs -r | wc -l)" -ge 4 ]; do sleep 0.3; done
+    while [ "$(jobs -r | wc -l)" -ge 6 ]; do sleep 0.3; done
   done
 done
 wait
@@ -63,6 +72,8 @@ echo "› Popup"
 for st in full empty "full&themeId=paper&theme=light" "full&themeId=harbor"; do
   "$BIN" "dev/preview/popup.html?state=$st" --wait "window.__popupReady" --eval "document.getElementById('app').innerText.length > 40 && !/undefined|NaN/.test(document.getElementById('app').innerText)" 2>/dev/null | grep -qE '^\[eval\] (true|1)$' && echo "  ok [$st]" || { echo "  FAIL popup [$st]"; fail=1; }
 done
+# The popup repaints when a Canvas tab changes the theme, even without a storage event.
+"$BIN" "dev/preview/popup.html?state=full&live=1" --wait "window.__liveResult !== undefined" --eval "window.__liveResult" 2>/dev/null | grep -qE '^\[eval\] (true|1)$' && echo "  ok [live theme change]" || { echo "  FAIL popup [live theme change]"; fail=1; }
 # Native-page dark mode: launcher visible, fixed elements in place,
 # background-image photos kept natural (pixel-checked), in dark and light.
 echo "› Native dark-mode checks"

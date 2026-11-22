@@ -129,6 +129,7 @@
     }
 
     const shell = Gesso.shell.create(shadow, actions);
+    Gesso.appearance.decorate(); // the sidebar exists now: add the theme's motif
     Gesso.shortcuts.install(shadow);
     Gesso.palette.setActions({
       'toggle-theme': () => Gesso.settings.update({ theme: store.get().settings.theme === 'light' ? 'dark' : 'light' }),

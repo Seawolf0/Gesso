@@ -2,6 +2,12 @@
 //
 //   swift dev/tools/webkit-run.swift <file.html?query> [--png out.png] [--width 1440] [--height 900]
 //         [--wait "js expr returning bool"] [--eval "js expr returning string"] [--full] [--timeout 15]
+//         [--visible]
+//
+// --visible puts the window on screen (nearly transparent, above other
+// windows) so WebKit gets a display link: CSS transitions and animations
+// then run in real time, as in Safari. Offscreen (the default), WebKit
+// freezes them at their first frame, which is why screenshots use ?noanim=1.
 //
 // Loads a local page, forwards console output to stdout, waits until --wait is
 // truthy (--timeout, default 15 s), prints the result of --eval, and optionally saves a
@@ -16,6 +22,7 @@ func opt(_ name: String) -> String? {
     let v = args[i + 1]; args.removeSubrange(i...(i + 1)); return v
 }
 let fullPage = args.contains("--full"); args.removeAll { $0 == "--full" }
+let visible = args.contains("--visible"); args.removeAll { $0 == "--visible" }
 let pngPath = opt("--png")
 let width = Double(opt("--width") ?? "1440")!
 let height = Double(opt("--height") ?? "900")!
@@ -24,11 +31,14 @@ let evalExpr = opt("--eval")
 let timeoutSec = Double(opt("--timeout") ?? "15")!
 guard let target = args.first else { print("usage: webkit-run <file.html?query> …"); exit(2) }
 
+// A local file (default) or an http(s) URL (e.g. the preview served on
+// localhost, for features that need a real origin such as BroadcastChannel).
+let isHTTP = target.hasPrefix("http://") || target.hasPrefix("https://")
 let parts = target.split(separator: "?", maxSplits: 1).map(String.init)
 let fileURL = URL(fileURLWithPath: parts[0]).standardizedFileURL
 var comps = URLComponents(url: fileURL, resolvingAgainstBaseURL: false)!
 if parts.count > 1 { comps.percentEncodedQuery = parts[1] }
-let pageURL = comps.url!
+let pageURL = isHTTP ? URL(string: target)! : comps.url!
 let rootDir = fileURL.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
 
 final class ConsoleBridge: NSObject, WKScriptMessageHandler {
@@ -61,9 +71,17 @@ config.userContentController.addUserScript(WKUserScript(source: """
 let webView = WKWebView(frame: NSRect(x: 0, y: 0, width: width, height: height), configuration: config)
 let window = NSWindow(contentRect: webView.frame, styleMask: [.borderless], backing: .buffered, defer: false)
 window.contentView = webView
-window.setFrameOrigin(NSPoint(x: -20000, y: -20000))
-window.orderBack(nil)
-webView.loadFileURL(pageURL, allowingReadAccessTo: rootDir)
+if visible {
+    window.setFrameOrigin(NSPoint(x: 0, y: 0))
+    window.alphaValue = 0.02
+    window.level = .floating
+    window.ignoresMouseEvents = true
+    window.orderFrontRegardless()
+} else {
+    window.setFrameOrigin(NSPoint(x: -20000, y: -20000))
+    window.orderBack(nil)
+}
+if isHTTP { webView.load(URLRequest(url: pageURL)) } else { webView.loadFileURL(pageURL, allowingReadAccessTo: rootDir) }
 
 func evalJS(_ js: String, _ done: @escaping (Any?) -> Void) {
     webView.evaluateJavaScript(js) { result, error in

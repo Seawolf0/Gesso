@@ -27,14 +27,25 @@
         changes[k] = { oldValue: store[k], newValue: structuredClone(v) };
         store[k] = structuredClone(v);
       }
-      listeners.forEach((fn) => fn(changes, 'local'));
+      // How storage.onChanged is delivered (window.__mockStorageEvents, or ?storageEvents=):
+      //   'sync'   (default) right inside set()
+      //   'async'  as a separate event after set() resolves, each listener on its own (Safari's model)
+      //   'none'   never: models a tab that doesn't hear its own (or anyone's) changes
+      const mode = window.__mockStorageEvents || params.get('storageEvents') || (params.get('asyncStorage') ? 'async' : 'sync');
+      const deliver = () => listeners.forEach((fn) => { try { fn(changes, 'local'); } catch (err) { console.error('[mock] onChanged listener threw', err); } });
+      if (mode === 'async') setTimeout(deliver, 0);
+      else if (mode !== 'none') deliver();
     },
     async remove(keys) {
       for (const k of [].concat(keys)) delete store[k];
     },
   };
+  const messageListeners = [];
   window.browser = {
     runtime: {
+      // runtime messages stay in this page (the popup preview loads the content scripts too)
+      onMessage: { addListener: (fn) => messageListeners.push(fn) },
+      sendMessage: async (msg) => { if (!messageListeners.length) throw new Error('Could not establish connection. Receiving end does not exist.'); messageListeners.forEach((fn) => fn(structuredClone(msg), {})); },
       id: 'mock-extension', // tests delete it to simulate a dead extension context
       getManifest: () => ({ version: 'dev', host_permissions: ['https://umd.instructure.com/*'] }),
     },

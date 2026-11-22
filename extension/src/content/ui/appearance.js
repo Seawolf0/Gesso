@@ -14,6 +14,10 @@
  *     canvas), dimmed by the theme background until text keeps 4.5:1
  *   - live preview for the custom editor: `preview(patch)` applies unsaved
  *     settings without writing them
+ *   - "Change with the seasons": the scheduled theme is re-checked at local
+ *     midnight and when the tab comes back, so it changes over on its own
+ *   - decorations: the seasonal/holiday theme's motif in the sidebar's empty
+ *     space (ui/motifs.js), unless turned off
  */
 (() => {
   const T = Gesso.themes;
@@ -87,11 +91,62 @@
     document.documentElement.style.setProperty('color-scheme', t.scheme);
 
     backdrop.update(s, t);
+    decorate();
+    watchSchedule(s);
 
     if (mirror) {
       Gesso.settings.writeMirror('theme', s.theme === 'light' ? 'light' : 'dark');
-      Gesso.settings.writeMirror('paint', T.paintRecord(t));
+      Gesso.settings.writeMirror('paint', T.paintRecord(t, s));
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // The seasonal schedule: change over at midnight (local), or on return
+  // ---------------------------------------------------------------------------
+
+  let midnightTimer = 0;
+  let shownDay = '';
+  const dayKey = (/** @type {Date} */ d) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+
+  function watchSchedule(/** @type {any} */ s) {
+    clearTimeout(midnightTimer);
+    if (!s?.seasonal) return;
+    const now = new Date();
+    shownDay = dayKey(now);
+    const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 2);
+    // Timers in background tabs can run late, so returning to the tab checks too.
+    midnightTimer = window.setTimeout(recheckDay, Math.min(next.getTime() - now.getTime(), 6 * 3600e3));
+  }
+  function recheckDay() {
+    if (!saved?.seasonal) return;
+    if (dayKey(new Date()) === shownDay) { watchSchedule(effective()); return; }
+    paint({ animate: true, mirror: !previewPatch });
+    // The settings page shows what's on and what's next: re-render it.
+    Gesso.store?.set({ themeDay: dayKey(new Date()) });
+  }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') recheckDay(); });
+
+  // ---------------------------------------------------------------------------
+  // Decorations
+  // ---------------------------------------------------------------------------
+
+  /** The motif to show for these settings, or '' (none, or turned off). */
+  function motifName(/** @type {any} */ s) {
+    if (!s || s.decorations === false) return '';
+    const id = T.activeId(s);
+    return id === 'custom' ? '' : T.byId(id).motif || '';
+  }
+
+  /** Put the motif in the sidebar's empty space (call again after the shell is built). */
+  function decorate() {
+    const spacer = host?.shadowRoot?.querySelector('.sidebar .nav__spacer');
+    if (!spacer) return;
+    const name = motifName(effective());
+    const cur = spacer.querySelector('.sidebar-motif');
+    if (cur?.getAttribute('data-motif') === name) return;
+    cur?.remove();
+    const svg = name ? Gesso.motifs.motif(name, { size: 84, class: 'sidebar-motif' }) : null;
+    if (svg) spacer.append(svg);
   }
 
   /**
@@ -276,7 +331,7 @@
   })();
 
   Gesso.appearance = {
-    IMAGE_KEY, apply, preview, paintFromMirror, view, themedCourses, imageDim, loadImage, blobOf,
+    IMAGE_KEY, apply, preview, paintFromMirror, view, themedCourses, imageDim, loadImage, blobOf, decorate, motifName,
     offerImage: backdrop.offer,
     /** The tokens showing now (after any preview). */
     tokens: () => tokens,

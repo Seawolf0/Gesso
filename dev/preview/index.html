@@ -37,7 +37,7 @@
       const route = new URLSearchParams(location.search).get('route'); // e.g. ?route=/courses/101/files
       if (route) location.hash = route;
       // ?noanim=1 — headless screenshots: offscreen WebKit windows don't advance CSS animations.
-      if (new URLSearchParams(location.search).get('noanim')) Gesso.styles.sheets.push('*,*::before,*::after{animation:none!important;transition:none!important}');
+      if (new URLSearchParams(location.search).get('noanim')) Gesso.styles.sheets.push(':host,*,*::before,*::after{animation:none!important;transition:none!important}');
       const host = document.getElementById('host');
       const shadow = host.attachShadow({ mode: 'open' });
       await Gesso.app.start({ host, shadow }, { bootAt: performance.now() });

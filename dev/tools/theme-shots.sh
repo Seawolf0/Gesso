@@ -4,14 +4,14 @@
 # theme. Runs the dev preview against mock data in headless WebKit.
 #
 # Usage: dev/tools/theme-shots.sh [out-dir] [theme ...]
-#   out-dir defaults to $TMPDIR/gesso-dev/theme-shots; themes default to all presets.
+#   out-dir defaults to $TMPDIR/gesso-dev/theme-shots; themes default to every preset in shared/themes.js.
 # Run dev/tools/test.sh once first: it builds the headless runner.
 set -e
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 BIN="${TMPDIR:-/tmp}/gesso-dev/webkit-run"
 OUT="${1:-${TMPDIR:-/tmp}/gesso-dev/theme-shots}"
 [ $# -gt 0 ] && shift
-THEMES="${*:-gesso linen harbor paper dusk graphite}"
+THEMES="${*:-$(sed -n "s/^ *id: '\([a-z0-9]*\)', group: .*/\1/p" "$ROOT/extension/src/shared/themes.js")}"
 mkdir -p "$OUT"
 [ -x "$BIN" ] || { echo "Run dev/tools/test.sh first (it builds $BIN)."; exit 1; }
 cd "$ROOT"
@@ -54,10 +54,10 @@ shoot() {
 }
 
 echo "› Screenshots ($(wc -l < "$jobs" | tr -d ' '))"
-# Four at a time; each runner is its own WebKit process.
+# Six at a time; each runner is its own WebKit process.
 while IFS="$(printf '\t')" read -r theme mode name route extra; do
   shoot "$theme" "$mode" "$name" "$route" "$extra" &
-  while [ "$(jobs -r | wc -l)" -ge 4 ]; do sleep 0.2; done
+  while [ "$(jobs -r | wc -l)" -ge 6 ]; do sleep 0.2; done
 done < "$jobs"
 wait
 

@@ -1500,7 +1500,11 @@
     const T = Gesso.themes;
     const HEXRE = /^#[0-9a-f]{6}$/;
     await test('themes: every preset, both modes, has every token and passes the contrast audit', () => {
-      ok(T.PRESETS.length >= 4 && T.PRESETS.length <= 6, 'four to six presets');
+      const by = (g) => T.PRESETS.filter((p) => p.group === g).map((p) => p.id);
+      ok(by('everyday').length >= 4 && by('everyday').length <= 6, 'four to six everyday presets');
+      eq(by('season'), ['spring', 'summer', 'autumn', 'winter']);
+      eq(by('holiday').sort(), ['christmas', 'halloween', 'july4', 'newyear', 'thanksgiving', 'valentines']);
+      for (const p of T.PRESETS) if (p.group !== 'everyday') ok(Gesso.motifs.NAMES.includes(p.motif), `${p.id} has a motif`);
       for (const p of T.PRESETS) {
         ok(p.name && p.description, `${p.id} named`);
         for (const mode of ['dark', 'light']) {
@@ -1653,6 +1657,77 @@
       eq([back.scheme, back.bg, back.accent, back['shadow']], ['light', t.bg, t.accent, t.shadow]);
       eq(T.readPaintRecord(JSON.stringify({ v: 1, s: 'dark', t: { bg: 'url(https://x)' } })), null);
       eq(T.readPaintRecord('{'), null);
+    });
+  }
+
+  // ---- seasonal schedule -------------------------------------------------------
+  {
+    const T = Gesso.themes;
+    const D = (y, m, d, h = 12) => new Date(y, m - 1, d, h);
+    const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    await test('schedule: Thanksgiving is the fourth Thursday of November', () => {
+      eq([2024, 2025, 2026, 2027, 2028, 2029, 2030].map((y) => ymd(T.thanksgiving(y))),
+        ['2024-11-28', '2025-11-27', '2026-11-26', '2027-11-25', '2028-11-23', '2029-11-22', '2030-11-28']);
+      for (let y = 2000; y <= 2100; y++) {
+        const t = T.thanksgiving(y);
+        ok(t.getDay() === 4 && t.getMonth() === 10 && t.getDate() >= 22 && t.getDate() <= 28, `${y}: ${t}`);
+      }
+    });
+    await test('schedule: window boundaries pick the right theme', () => {
+      const cases = [
+        [D(2027, 1, 1), 'newyear'], [D(2027, 1, 2), 'newyear'], [D(2027, 1, 3), 'winter'],
+        [D(2027, 2, 6), 'winter'], [D(2027, 2, 7), 'valentines'], [D(2027, 2, 14), 'valentines'], [D(2027, 2, 15), 'winter'],
+        [D(2028, 2, 29), 'winter'], [D(2027, 3, 1), 'spring'], [D(2027, 5, 31), 'spring'], [D(2027, 6, 1), 'summer'],
+        [D(2027, 6, 30), 'summer'], [D(2027, 7, 1), 'july4'], [D(2027, 7, 5), 'july4'], [D(2027, 7, 6), 'summer'],
+        [D(2027, 8, 31), 'summer'], [D(2027, 9, 1), 'autumn'], [D(2027, 10, 14), 'autumn'], [D(2027, 10, 15), 'halloween'],
+        [D(2027, 10, 31), 'halloween'], [D(2027, 11, 1), 'autumn'],
+        [D(2026, 11, 18), 'autumn'], [D(2026, 11, 19), 'thanksgiving'], [D(2026, 11, 26), 'thanksgiving'], [D(2026, 11, 29), 'thanksgiving'],
+        [D(2026, 11, 30), 'christmas'], [D(2026, 12, 26), 'christmas'], [D(2026, 12, 27), 'newyear'], [D(2026, 12, 31), 'newyear'],
+        [D(2028, 11, 15), 'autumn'], [D(2028, 11, 16), 'thanksgiving'], [D(2028, 11, 26), 'thanksgiving'], [D(2028, 11, 27), 'christmas'],
+        [D(2026, 11, 19, 0), 'thanksgiving'], [D(2026, 11, 18, 23), 'autumn'], // whole days, not times
+      ];
+      for (const [d, id] of cases) eq(T.scheduledFor(d), id, ymd(d));
+    });
+    await test('schedule: every day of 2025–2031 has exactly one theme, and each holiday shows once a year', () => {
+      for (let y = 2025; y <= 2031; y++) {
+        const seen = new Map();
+        for (let d = D(y, 1, 1); d.getFullYear() === y; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) {
+          const id = T.scheduledFor(d);
+          ok(T.PRESET_IDS.includes(id) && T.byId(id).group !== 'everyday', `${ymd(d)} → ${id}`);
+          seen.set(id, (seen.get(id) || 0) + 1);
+        }
+        for (const id of ['valentines', 'july4', 'halloween', 'thanksgiving', 'christmas']) ok(seen.get(id) >= 5 && seen.get(id) <= 31, `${y} ${id} ${seen.get(id)} days`);
+        eq(seen.get('newyear'), 7, `${y} New Year's days (Jan 1–2 + Dec 27–31)`);
+      }
+    });
+    await test('schedule: what is showing, until when, and what comes next', () => {
+      let s = T.schedule(D(2026, 11, 22));
+      eq([s.id, ymd(s.from), ymd(s.until), s.next.id, ymd(s.next.starts)], ['thanksgiving', '2026-11-19', '2026-11-29', 'christmas', '2026-11-30']);
+      s = T.schedule(D(2026, 12, 31));
+      eq([s.id, ymd(s.from), ymd(s.until), s.next.id, ymd(s.next.starts)], ['newyear', '2026-12-27', '2027-01-02', 'winter', '2027-01-03']);
+      s = T.schedule(D(2027, 4, 10));
+      eq([s.id, ymd(s.until), s.next.id], ['spring', '2027-05-31', 'summer']);
+    });
+    await test('seasonal mode: shows the scheduled theme as designed and keeps the chosen one', () => {
+      const settings = { seasonal: true, themeId: 'harbor', accent: '#ff0000', theme: 'dark' };
+      const t = T.resolve(settings, undefined, D(2026, 12, 25));
+      eq(t.bg, T.resolve({ themeId: 'christmas' }, 'dark').bg);
+      eq(t.accent, T.resolve({ themeId: 'christmas' }, 'dark').accent, 'a chosen accent waits until seasonal is off');
+      eq(T.activeId(settings, D(2026, 10, 20)), 'halloween');
+      eq(T.activeId({ ...settings, seasonal: false }), 'harbor');
+      const norm = Gesso.settings.normalize({});
+      eq([norm.seasonal, norm.decorations], [false, true], 'off by default; decorations on');
+      // The paint mirror recomputes for the day it's read.
+      const rec = T.paintRecord(T.resolve({ seasonal: true, theme: 'light' }, undefined, D(2026, 10, 20)), { seasonal: true, theme: 'light' });
+      eq(T.readPaintRecord(rec, D(2026, 12, 20)).bg, T.resolve({ themeId: 'christmas' }, 'light').bg);
+    });
+    await test('motifs: every one renders as decorative SVG', () => {
+      for (const name of Gesso.motifs.NAMES) {
+        const svg = Gesso.motifs.motif(name);
+        ok(svg && svg.getAttribute('aria-hidden') === 'true' && svg.childElementCount >= 3, name);
+        ok(!svg.querySelector('image, use, foreignObject, script'), `${name}: shapes only`);
+      }
+      eq(Gesso.motifs.motif('gesso'), null);
     });
   }
 

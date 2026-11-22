@@ -22,7 +22,7 @@ analytics, no remote code and no dependencies.
 | ![Grades](docs/screenshots/grades.png) | ![Course grades](docs/screenshots/course-grades.png) |
 | **Light theme** | **Toolbar popup** |
 | ![Dashboard, light theme](docs/screenshots/dashboard-light.png) | ![Toolbar popup](docs/screenshots/popup.png) |
-| **Themes: six built-in, plus your own** | **The Paper theme, with its course palette** |
+| **Themes: everyday, seasons and holidays, plus your own** | **The Paper theme, with its course palette** |
 | ![Settings, Appearance: the theme gallery](docs/screenshots/themes.png) | ![Dashboard in the Paper theme, light](docs/screenshots/dashboard-paper.png) |
 
 Screenshots use the built-in preview's made-up data.
@@ -67,9 +67,10 @@ Screenshots use the built-in preview's made-up data.
     explained.
   - What-if scores, "what do I need" for each letter, trends, and a GPA
     estimate on a scale you choose.
-- **Themes:** six built-in themes (Gesso, Linen, Harbor, Paper, Dusk,
-  Graphite), each with a dark and a light version, plus your own custom
-  theme. Pick one color and the rest is derived from it, or set the
+- **Themes:** six everyday themes (Gesso, Linen, Harbor, Paper, Dusk,
+  Graphite), four seasons and six holidays, each with a dark and a light
+  version, plus your own custom theme. Optionally, Gesso changes with the
+  seasons by itself. Pick one color and the rest is derived from it, or set the
   background, surfaces and text yourself. Optionally add a background image
   from your Mac. Themes can be shared as small `.json` files. They apply to
   Gesso and the toolbar popup. See [Themes](#themes).
@@ -187,8 +188,9 @@ ship automatically, but content scripts must also be listed in
 - **To-dos:** **Add to-do** on the dashboard or the calendar. They're Canvas
   planner notes, so they sync with Canvas and its apps.
 - **Settings** (sidebar, or `g s`):
-  - Appearance: theme, mode, accent, course colors, density, and the
-    custom theme editor (see [Themes](#themes))
+  - Appearance: theme, change with the seasons, mode, accent, course
+    colors, decorations, density, and the custom theme editor (see
+    [Themes](#themes))
   - Dashboard: default view, the "due soon" window
   - Grades: the GPA scale
   - Courses: courses hidden from Gesso
@@ -206,15 +208,36 @@ ship automatically, but content scripts must also be listed in
 
 ### Themes
 
-**Settings → Appearance** shows a live preview of each theme. Click one to
-switch, and use **Mode** (or the sun and moon in the top bar) for its dark or
-light version.
+**Settings → Appearance** shows a live preview of each theme, in three
+groups: Everyday, Seasons and Holidays. Click one to switch, and use **Mode**
+(or the sun and moon in the top bar) for its dark or light version.
 
-- **Built-in themes:** Gesso (cool graphite, periwinkle; the original),
+- **Everyday themes:** Gesso (cool graphite, periwinkle; the original),
   Linen (warm stone, clay), Harbor (deep navy, sky blue), Paper (paper
   whites and ink, teal), Dusk (muted plum, orchid) and Graphite (neutral
   grays, monochrome). Every one passes the automated contrast audit (WCAG
   AA) in both modes.
+- **Seasons and holidays:** Spring, Summer, Autumn and Winter, plus
+  New Year's, Valentine's Day, Fourth of July, Halloween, Thanksgiving and
+  Christmas. Each has a dark and a light version and its own palette (for
+  example Halloween is deep charcoal with an ember accent; Christmas is deep
+  evergreen with cranberry and gold). They pass the same contrast audit.
+- **Change with the seasons** (off by default): Gesso shows the current
+  holiday's theme during its window, otherwise the current season's, and
+  says what's showing and what comes next. Turning it off (or picking any
+  theme) brings your own theme back. It uses your Mac's date and changes over
+  at midnight.
+  - Seasons go by month: Spring March–May, Summer June–August, Autumn
+    September–November, Winter December–February.
+  - Holidays: New Year's Dec 27–Jan 2, Valentine's Day Feb 7–14, Fourth of
+    July Jul 1–5, Halloween Oct 15–31, Thanksgiving from the Thursday before
+    to the Sunday after (Thanksgiving is the fourth Thursday of November),
+    Christmas from the Monday after Thanksgiving to Dec 26.
+  - Your own accent color waits while it's on; seasonal themes keep theirs.
+- **Seasonal decorations:** seasonal and holiday themes add one small,
+  static line drawing (a sprig, a snowflake, a crescent moon…) in the
+  sidebar's empty space and in the theme previews. It's never over your
+  content. Turn it off with **Seasonal decorations**.
 - **Accent:** the first swatch is the theme's own accent. Any other color
   replaces it, and links, focus rings and button text are adjusted to stay
   readable.
@@ -369,6 +392,11 @@ decimals, so float error can't move a score across a boundary.
 - **Theme screenshots:** `dev/tools/theme-shots.sh [out-dir]` takes every
   built-in theme, dark and light, on every main view (plus the popup, a dialog
   and ⌘K), and makes a contact sheet per theme and one overview.
+- **Headless runner options:** `--visible` runs CSS transitions and
+  animations in real time (an on-screen, nearly transparent window), and the
+  target can be an `http://` URL. `test.sh` serves the preview on localhost
+  for the interaction checks, because the cross-tab settings ping
+  (BroadcastChannel) needs a real origin.
 - **Performance:** `dev/tools/perf.sh [scale]` prints the median and max
   render time per view. Run `test.sh` once first; it builds the headless
   runner.

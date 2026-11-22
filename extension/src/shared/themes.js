@@ -166,6 +166,8 @@
    * @property {number[]} palette            course/chart hues
    * @property {number} [paletteL]
    * @property {number} [paletteC]
+   * @property {string} [heat]               calendar workload color (default: the accent)
+   * @property {string} [motifB]             second decoration color (default: the accent)
    * @property {Record<string, string>} [hex]  exact token values (win over derived ones)
    */
 
@@ -199,12 +201,12 @@
   /** @type {Preset[]} */
   const PRESETS = [
     {
-      id: 'gesso', name: 'Gesso', description: 'Cool graphite with a periwinkle accent. The original.',
+      id: 'gesso', group: 'everyday', name: 'Gesso', description: 'Cool graphite with a periwinkle accent. The original.',
       dark: { neutral: { h: 262, c: 0.014 }, accent: '#8b9cff', palette: [272, 188, 42, 318, 245, 85, 148, 0], paletteL: 0.72, paletteC: 0.115, hex: GESSO_DARK_HEX },
       light: { neutral: { h: 262, c: 0.01 }, accent: '#8b9cff', palette: [272, 188, 42, 318, 245, 85, 148, 0], paletteL: 0.6, paletteC: 0.13, hex: GESSO_LIGHT_HEX },
     },
     {
-      id: 'linen', name: 'Linen', description: 'Warm stone neutrals with a clay accent.',
+      id: 'linen', group: 'everyday', name: 'Linen', description: 'Warm stone neutrals with a clay accent.',
       dark: {
         neutral: { h: 55, c: 0.017 }, textC: 0.01, ladder: { bg: 0.168, bgElev: 0.188, surface: 0.21, surface2: 0.238, surface3: 0.27 },
         accent: oklch(0.75, 0.1, 50), status: { danger: 15, warn: 82, ok: 145, info: 240 },
@@ -217,7 +219,7 @@
       },
     },
     {
-      id: 'harbor', name: 'Harbor', description: 'Deep navy with a clear sky-blue accent.',
+      id: 'harbor', group: 'everyday', name: 'Harbor', description: 'Deep navy with a clear sky-blue accent.',
       dark: {
         neutral: { h: 258, c: 0.04 }, textC: 0.016, ladder: { bg: 0.175, bgElev: 0.195, surface: 0.218, surface2: 0.248, surface3: 0.282, border: 0.29, borderStrong: 0.355, text3: 0.7 },
         accent: oklch(0.77, 0.115, 245), status: { danger: 22, warn: 78, ok: 160, info: 230 },
@@ -230,7 +232,7 @@
       },
     },
     {
-      id: 'paper', name: 'Paper', description: 'Soft paper whites and dark ink, with a teal accent.',
+      id: 'paper', group: 'everyday', name: 'Paper', description: 'Soft paper whites and dark ink, with a teal accent.',
       dark: {
         neutral: { h: 90, c: 0.005 }, textC: 0.016, ladder: { bg: 0.205, bgElev: 0.222, surface: 0.242, surface2: 0.268, surface3: 0.3, border: 0.312, borderStrong: 0.372, text: 0.925, text3: 0.7 },
         accent: oklch(0.78, 0.085, 195), status: { danger: 30, warn: 80, ok: 150, info: 235 },
@@ -243,7 +245,7 @@
       },
     },
     {
-      id: 'dusk', name: 'Dusk', description: 'Muted plum shadows with a soft orchid accent.',
+      id: 'dusk', group: 'everyday', name: 'Dusk', description: 'Muted plum shadows with a soft orchid accent.',
       dark: {
         neutral: { h: 318, c: 0.022 }, textC: 0.012, ladder: { bg: 0.168, bgElev: 0.188, surface: 0.21, surface2: 0.24, surface3: 0.274 },
         accent: oklch(0.78, 0.11, 312), status: { danger: 18, warn: 75, ok: 158, info: 255 },
@@ -256,7 +258,7 @@
       },
     },
     {
-      id: 'graphite', name: 'Graphite', description: 'Pure neutral grays. Monochrome, no tint.',
+      id: 'graphite', group: 'everyday', name: 'Graphite', description: 'Pure neutral grays. Monochrome, no tint.',
       dark: {
         neutral: { h: 0, c: 0 }, textC: 0, ladder: { bg: 0.155, bgElev: 0.175, surface: 0.198, surface2: 0.228, surface3: 0.262 },
         accent: '#ececec', accentFg: '#111111', linkDeco: 'underline',
@@ -268,9 +270,210 @@
         palette: [250, 190, 140, 85, 45, 15, 320, 285], paletteL: 0.56, paletteC: 0.075,
       },
     },
+    // ---- Seasons ------------------------------------------------------------
+    {
+      id: 'spring', group: 'season', motif: 'spring', name: 'Spring', description: 'New-leaf greens with a soft wisteria accent.',
+      dark: {
+        neutral: { h: 150, c: 0.016 }, textC: 0.01, ladder: { bg: 0.17, bgElev: 0.19, surface: 0.212, surface2: 0.24, surface3: 0.273 },
+        accent: oklch(0.8, 0.09, 300), status: { danger: 22, warn: 78, ok: 155, info: 245 },
+        palette: [300, 145, 350, 95, 200, 50, 260, 120], paletteL: 0.75, paletteC: 0.09,
+      },
+      light: {
+        neutral: { h: 140, c: 0.013 }, textC: 0.012, ladder: { bg: 0.963, bgElev: 0.979, surface: 0.995 },
+        accent: oklch(0.52, 0.13, 300), accentFg: '#ffffff', status: { danger: 22, warn: 70, ok: 150, info: 245 },
+        palette: [300, 145, 350, 95, 200, 50, 260, 120], paletteL: 0.58, paletteC: 0.11,
+      },
+    },
+    {
+      id: 'summer', group: 'season', motif: 'summer', name: 'Summer', description: 'Deep sea nights and warm sand days, with a turquoise accent.',
+      dark: {
+        neutral: { h: 222, c: 0.03 }, textC: 0.012, ladder: { bg: 0.172, bgElev: 0.192, surface: 0.215, surface2: 0.245, surface3: 0.279, border: 0.288, borderStrong: 0.35, text3: 0.7 },
+        accent: oklch(0.8, 0.11, 188), status: { danger: 25, warn: 80, ok: 150, info: 255 }, motifB: oklch(0.84, 0.12, 82),
+        palette: [188, 60, 230, 30, 150, 95, 290, 345], paletteL: 0.76, paletteC: 0.1,
+      },
+      light: {
+        neutral: { h: 85, c: 0.02 }, textC: 0.014, ladder: { bg: 0.958, bgElev: 0.973, surface: 0.993, surface2: 0.965, surface3: 0.94, border: 0.905, borderStrong: 0.86 },
+        accent: oklch(0.5, 0.1, 205), accentFg: '#ffffff', status: { danger: 25, warn: 65, ok: 150, info: 250 }, motifB: oklch(0.76, 0.13, 75),
+        palette: [195, 55, 235, 25, 150, 90, 290, 345], paletteL: 0.58, paletteC: 0.115,
+      },
+    },
+    {
+      id: 'autumn', group: 'season', motif: 'autumn', name: 'Autumn', description: 'Russet browns with a warm ochre accent.',
+      dark: {
+        neutral: { h: 45, c: 0.02 }, textC: 0.012, ladder: { bg: 0.168, bgElev: 0.188, surface: 0.21, surface2: 0.238, surface3: 0.27 },
+        accent: oklch(0.8, 0.11, 72), status: { danger: 25, warn: 98, ok: 140, info: 240 },
+        palette: [72, 35, 130, 15, 100, 200, 330, 55], paletteL: 0.72, paletteC: 0.1,
+      },
+      light: {
+        neutral: { h: 60, c: 0.016 }, textC: 0.016, ladder: { bg: 0.958, bgElev: 0.975, surface: 0.993, surface2: 0.965, surface3: 0.938, border: 0.902, borderStrong: 0.856 },
+        accent: oklch(0.52, 0.11, 62), accentFg: '#ffffff', status: { danger: 25, warn: 92, ok: 145, info: 245 },
+        palette: [70, 35, 130, 15, 100, 200, 330, 55], paletteL: 0.57, paletteC: 0.115,
+      },
+    },
+    {
+      id: 'winter', group: 'season', motif: 'winter', name: 'Winter', description: 'Cool slate and frost, with an icy blue accent.',
+      dark: {
+        neutral: { h: 240, c: 0.013 }, textC: 0.01, ladder: { bg: 0.18, bgElev: 0.2, surface: 0.224, surface2: 0.254, surface3: 0.288, border: 0.298, borderStrong: 0.36, text3: 0.71 },
+        accent: oklch(0.86, 0.06, 215), status: { danger: 20, warn: 80, ok: 160, info: 260 },
+        palette: [220, 260, 190, 300, 160, 340, 80, 30], paletteL: 0.76, paletteC: 0.08,
+      },
+      light: {
+        neutral: { h: 240, c: 0.012 }, textC: 0.022, ladder: { bg: 0.967, bgElev: 0.982, surface: 1 },
+        accent: oklch(0.5, 0.1, 235), accentFg: '#ffffff', status: { danger: 22, warn: 70, ok: 158, info: 260 },
+        palette: [225, 260, 190, 300, 160, 340, 80, 30], paletteL: 0.58, paletteC: 0.1,
+      },
+    },
+    // ---- Holidays -----------------------------------------------------------
+    {
+      id: 'newyear', group: 'holiday', motif: 'newyear', name: 'New Year’s', description: 'Midnight blue with a champagne accent.',
+      dark: {
+        neutral: { h: 275, c: 0.03 }, textC: 0.01, ladder: { bg: 0.16, bgElev: 0.18, surface: 0.204, surface2: 0.234, surface3: 0.268, border: 0.278, borderStrong: 0.342 },
+        accent: oklch(0.86, 0.06, 88), status: { danger: 22, warn: 60, ok: 160, info: 250 },
+        palette: [88, 275, 200, 330, 150, 240, 40, 300], paletteL: 0.77, paletteC: 0.08,
+      },
+      light: {
+        neutral: { h: 275, c: 0.01 }, textC: 0.03, ladder: { bg: 0.966, bgElev: 0.982, surface: 1 },
+        accent: oklch(0.47, 0.09, 80), accentFg: '#ffffff', status: { danger: 22, warn: 55, ok: 158, info: 255 },
+        palette: [80, 275, 200, 330, 150, 240, 40, 300], paletteL: 0.56, paletteC: 0.1,
+      },
+    },
+    {
+      id: 'valentines', group: 'holiday', motif: 'valentines', name: 'Valentine’s Day', description: 'Warm rosewood with a rose accent.',
+      dark: {
+        neutral: { h: 8, c: 0.022 }, textC: 0.012, ladder: { bg: 0.168, bgElev: 0.188, surface: 0.21, surface2: 0.24, surface3: 0.272 },
+        accent: oklch(0.79, 0.1, 2), status: { danger: 32, warn: 82, ok: 155, info: 250 },
+        palette: [2, 320, 40, 280, 85, 200, 345, 150], paletteL: 0.74, paletteC: 0.1,
+      },
+      light: {
+        neutral: { h: 10, c: 0.012 }, textC: 0.02, ladder: { bg: 0.965, bgElev: 0.981, surface: 1 },
+        accent: oklch(0.52, 0.15, 2), accentFg: '#ffffff', status: { danger: 34, warn: 72, ok: 152, info: 250 },
+        palette: [2, 320, 40, 280, 85, 200, 345, 150], paletteL: 0.58, paletteC: 0.12,
+      },
+    },
+    {
+      id: 'july4', group: 'holiday', motif: 'july4', name: 'Fourth of July', description: 'Deep navy and warm ivory, with brick red and flag blue.',
+      dark: {
+        neutral: { h: 265, c: 0.035 }, textC: 0.012, ladder: { bg: 0.172, bgElev: 0.192, surface: 0.216, surface2: 0.246, surface3: 0.28, border: 0.29, borderStrong: 0.352, text3: 0.7 },
+        accent: oklch(0.72, 0.13, 30), status: { danger: 5, warn: 82, ok: 155, info: 245 },
+        heat: oklch(0.72, 0.11, 255), motifB: oklch(0.74, 0.1, 255),
+        palette: [255, 30, 85, 200, 330, 150, 60, 290], paletteL: 0.72, paletteC: 0.11,
+      },
+      light: {
+        neutral: { h: 85, c: 0.016 }, textC: 0.03, ladder: { bg: 0.96, bgElev: 0.975, surface: 0.994, surface2: 0.966, surface3: 0.94, border: 0.905, borderStrong: 0.86, text: 0.23 },
+        accent: oklch(0.5, 0.15, 30), accentFg: '#ffffff', status: { danger: 5, warn: 70, ok: 152, info: 255 },
+        heat: oklch(0.5, 0.13, 258), motifB: oklch(0.5, 0.13, 258),
+        palette: [258, 30, 75, 200, 330, 150, 55, 290], paletteL: 0.55, paletteC: 0.13,
+      },
+    },
+    {
+      id: 'halloween', group: 'holiday', motif: 'halloween', name: 'Halloween', description: 'Deep charcoal with an ember-orange accent.',
+      dark: {
+        neutral: { h: 300, c: 0.014 }, textC: 0.008, ladder: { bg: 0.158, bgElev: 0.178, surface: 0.2, surface2: 0.23, surface3: 0.264 },
+        accent: oklch(0.74, 0.14, 52), status: { danger: 22, warn: 95, ok: 150, info: 260 },
+        palette: [52, 300, 130, 85, 340, 210, 25, 260], paletteL: 0.72, paletteC: 0.1,
+      },
+      light: {
+        neutral: { h: 300, c: 0.007 }, textC: 0.012, ladder: { bg: 0.962, bgElev: 0.978, surface: 0.996 },
+        accent: oklch(0.55, 0.15, 48), accentFg: '#ffffff', status: { danger: 20, warn: 92, ok: 150, info: 260 },
+        palette: [50, 300, 130, 85, 340, 210, 25, 260], paletteL: 0.57, paletteC: 0.12,
+      },
+    },
+    {
+      id: 'thanksgiving', group: 'holiday', motif: 'thanksgiving', name: 'Thanksgiving', description: 'Walnut and wheat, with a sage accent.',
+      dark: {
+        neutral: { h: 60, c: 0.02 }, textC: 0.014, ladder: { bg: 0.17, bgElev: 0.19, surface: 0.212, surface2: 0.24, surface3: 0.272 },
+        accent: oklch(0.8, 0.07, 135), status: { danger: 25, warn: 60, ok: 170, info: 245 },
+        palette: [135, 55, 20, 85, 200, 320, 160, 40], paletteL: 0.73, paletteC: 0.095,
+      },
+      light: {
+        neutral: { h: 75, c: 0.018 }, textC: 0.016, ladder: { bg: 0.957, bgElev: 0.973, surface: 0.992, surface2: 0.964, surface3: 0.937, border: 0.9, borderStrong: 0.855 },
+        accent: oklch(0.47, 0.08, 135), accentFg: '#ffffff', status: { danger: 25, warn: 55, ok: 168, info: 245 },
+        palette: [135, 55, 20, 85, 200, 320, 160, 40], paletteL: 0.56, paletteC: 0.105,
+      },
+    },
+    {
+      id: 'christmas', group: 'holiday', motif: 'christmas', name: 'Christmas', description: 'Deep evergreen with cranberry and a touch of gold.',
+      dark: {
+        neutral: { h: 165, c: 0.032 }, textC: 0.01, ladder: { bg: 0.17, bgElev: 0.19, surface: 0.213, surface2: 0.243, surface3: 0.276, border: 0.286, borderStrong: 0.348 },
+        accent: oklch(0.62, 0.16, 15), status: { danger: 38, warn: 85, ok: 140, info: 245 },
+        heat: oklch(0.8, 0.1, 85), motifB: oklch(0.82, 0.1, 85),
+        palette: [10, 85, 165, 230, 345, 130, 300, 60], paletteL: 0.73, paletteC: 0.1,
+      },
+      light: {
+        neutral: { h: 160, c: 0.012 }, textC: 0.03, ladder: { bg: 0.962, bgElev: 0.978, surface: 0.996 },
+        accent: oklch(0.47, 0.15, 10), accentFg: '#ffffff', status: { danger: 40, warn: 80, ok: 145, info: 245 },
+        heat: oklch(0.62, 0.12, 80), motifB: oklch(0.66, 0.12, 80),
+        palette: [12, 80, 165, 230, 345, 130, 300, 60], paletteL: 0.55, paletteC: 0.12,
+      },
+    },
   ];
   const PRESET_IDS = PRESETS.map((p) => p.id);
   const byId = (/** @type {string} */ id) => PRESETS.find((p) => p.id === id) || PRESETS[0];
+  /** Gallery sections, in order. */
+  const GROUPS = /** @type {const} */ ([['everyday', 'Everyday'], ['season', 'Seasons'], ['holiday', 'Holidays']]);
+
+  // ---------------------------------------------------------------------------
+  // The seasonal schedule (Settings → "Change with the seasons")
+  // ---------------------------------------------------------------------------
+  //
+  // Local dates only (the Mac's calendar), compared as whole days, so DST and
+  // time of day never matter. Seasons are meteorological (whole months: they
+  // line up with the academic year, and never shift by a day between years).
+  // Holiday windows (inclusive), checked before the season:
+  //   New Year's       Dec 27 – Jan 2
+  //   Valentine's Day  Feb 7 – Feb 14
+  //   Fourth of July   Jul 1 – Jul 5
+  //   Halloween        Oct 15 – Oct 31
+  //   Thanksgiving     the Thursday before – the Sunday after (Thanksgiving is
+  //                    the fourth Thursday of November)
+  //   Christmas        the Monday after Thanksgiving – Dec 26
+
+  /** Midnight (local) of the day `d` falls on. */
+  const dayOf = (/** @type {Date} */ d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const addDays = (/** @type {Date} */ d, /** @type {number} */ n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+  /** Thanksgiving Day: the fourth Thursday of November. */
+  function thanksgiving(/** @type {number} */ year) {
+    const first = new Date(year, 10, 1).getDay(); // 0 = Sunday … 4 = Thursday
+    return new Date(year, 10, 1 + ((4 - first + 7) % 7) + 21);
+  }
+  /** @returns {{ id: string, from: Date, to: Date }[]} the holiday windows that touch `year` */
+  function holidayWindows(/** @type {number} */ year) {
+    const t = thanksgiving(year);
+    return [
+      { id: 'newyear', from: new Date(year - 1, 11, 27), to: new Date(year, 0, 2) },
+      { id: 'valentines', from: new Date(year, 1, 7), to: new Date(year, 1, 14) },
+      { id: 'july4', from: new Date(year, 6, 1), to: new Date(year, 6, 5) },
+      { id: 'halloween', from: new Date(year, 9, 15), to: new Date(year, 9, 31) },
+      { id: 'thanksgiving', from: addDays(t, -7), to: addDays(t, 3) },
+      { id: 'christmas', from: addDays(t, 4), to: new Date(year, 11, 26) },
+      { id: 'newyear', from: new Date(year, 11, 27), to: new Date(year + 1, 0, 2) },
+    ];
+  }
+  const SEASON_OF_MONTH = ['winter', 'winter', 'spring', 'spring', 'spring', 'summer', 'summer', 'summer', 'autumn', 'autumn', 'autumn', 'winter'];
+
+  /** The theme the seasonal schedule picks for a day. */
+  function scheduledFor(/** @type {Date} */ date = new Date()) {
+    const d = dayOf(date);
+    for (const w of holidayWindows(d.getFullYear())) if (d >= w.from && d <= w.to) return w.id;
+    return SEASON_OF_MONTH[d.getMonth()];
+  }
+
+  /**
+   * What the schedule shows now, since when, until when, and what's next.
+   * @param {Date} [date]
+   * @returns {{ id: string, name: string, kind: string, from: Date, until: Date, next: { id: string, name: string, starts: Date } }}
+   */
+  function schedule(date = new Date()) {
+    const d = dayOf(date);
+    const id = scheduledFor(d);
+    let from = d;
+    while (scheduledFor(addDays(from, -1)) === id) from = addDays(from, -1);
+    let until = d;
+    while (scheduledFor(addDays(until, 1)) === id) until = addDays(until, 1);
+    const starts = addDays(until, 1);
+    const nextId = scheduledFor(starts);
+    return { id, name: byId(id).name, kind: byId(id).group, from, until, next: { id: nextId, name: byId(nextId).name, starts } };
+  }
 
   // ---------------------------------------------------------------------------
   // build(): spec → tokens
@@ -279,7 +482,7 @@
   /** Token names in the order they're written (all are CSS custom properties). */
   const COLOR_TOKENS = ['bg', 'bg-elev', 'surface', 'surface-2', 'surface-3', 'border', 'border-strong', 'text', 'text-2', 'text-3',
     'danger', 'danger-soft', 'warn', 'warn-soft', 'ok', 'ok-soft', 'info', 'info-soft', 'neutral-soft',
-    'accent', 'accent-fg', 'accent-soft', 'accent-text', 'focus', 'heat-base', 'overlay', 'skeleton-a', 'skeleton-b',
+    'accent', 'accent-fg', 'accent-soft', 'accent-text', 'focus', 'heat-base', 'motif-b', 'overlay', 'skeleton-a', 'skeleton-b',
     'chart-1', 'chart-2', 'chart-3', 'chart-4', 'chart-5', 'chart-6', 'chart-7', 'chart-8'];
 
   /**
@@ -354,7 +557,8 @@
     t['link-deco'] = spec.linkDeco || 'none';
     // The calendar's workload heat is tints of this. A neutral accent (near
     // black or white) would make busy days look muddy, so those heat in a mid gray.
-    t['heat-base'] = oklchOf(accent).c < 0.03 ? mix(t['text-3'], t.bg, 0.25) : accent;
+    t['heat-base'] = spec.heat || (oklchOf(accent).c < 0.03 ? mix(t['text-3'], t.bg, 0.25) : accent);
+    t['motif-b'] = spec.motifB || accent;
 
     // Elevation and loading.
     t.overlay = dark ? rgba(n(0.09, c * 0.6), 0.62) : rgba(n(0.2, c * 0.6), 0.36);
@@ -478,12 +682,16 @@
   // ---------------------------------------------------------------------------
 
   /**
-   * @param {any} settings  { themeId, theme (mode), accent, customTheme }
+   * @param {any} settings  { themeId, theme (mode), accent, customTheme, seasonal }
    * @param {'dark'|'light'} [modeArg]  defaults to settings.theme
+   * @param {Date} [now]  for the seasonal schedule (default: today)
    * @returns {Tokens}
    */
-  function resolve(settings, modeArg) {
+  function resolve(settings, modeArg, now) {
     const mode = modeArg || (settings?.theme === 'light' ? 'light' : 'dark');
+    // "Change with the seasons" shows the scheduled theme as designed: the
+    // chosen theme (and a chosen accent) come back when it's turned off.
+    if (settings?.seasonal) return build(byId(scheduledFor(now))[mode], mode);
     const id = settings?.themeId || 'gesso';
     if (id === 'custom' && settings?.customTheme) {
       const ct = /** @type {CustomTheme} */ (settings.customTheme);
@@ -502,8 +710,9 @@
     return build(spec, mode);
   }
 
-  /** The id actually showing (a missing custom theme falls back to Gesso). */
-  const activeId = (/** @type {any} */ s) => (s?.themeId === 'custom' ? (s.customTheme ? 'custom' : 'gesso') : byId(s?.themeId || 'gesso').id);
+  /** The id actually showing: the seasonal schedule's when it's on; a missing custom theme falls back to Gesso. */
+  const activeId = (/** @type {any} */ s, /** @type {Date} */ now = new Date()) => (s?.seasonal ? scheduledFor(now)
+    : s?.themeId === 'custom' ? (s.customTheme ? 'custom' : 'gesso') : byId(s?.themeId || 'gesso').id);
 
   /** CSS declarations for a token set (`--bg: …;` …), for the stylesheet fallback. */
   function toCss(/** @type {Tokens} */ t) {
@@ -731,15 +940,21 @@
   /**
    * The tokens the takeover paints before settings load: written to the Canvas
    * page's localStorage (and the popup's) on every apply. Compact on purpose.
-   * @param {Tokens} t
+   * With the seasonal schedule on, the reader recomputes for today instead,
+   * so the first frame after midnight on a changeover day is already right.
+   * @param {Tokens} t @param {any} [settings]
    */
-  const paintRecord = (t) => JSON.stringify({ v: 1, s: t.scheme, t: Object.fromEntries([...COLOR_TOKENS, 'shadow', 'shadow-sm', 'link-deco'].map((k) => [k, t[k]])) });
+  const paintRecord = (t, settings) => JSON.stringify({
+    v: 1, s: t.scheme, m: settings?.theme === 'light' ? 'light' : 'dark', sz: !!settings?.seasonal,
+    t: Object.fromEntries([...COLOR_TOKENS, 'shadow', 'shadow-sm', 'link-deco'].map((k) => [k, t[k]])),
+  });
 
   /** @returns {Tokens|null} */
-  function readPaintRecord(/** @type {string|null} */ raw) {
+  function readPaintRecord(/** @type {string|null} */ raw, /** @type {Date} */ now = new Date()) {
     try {
       const p = JSON.parse(raw || 'null');
       if (!p || p.v !== 1 || !isPlain(p.t) || (p.s !== 'dark' && p.s !== 'light')) return null;
+      if (p.sz === true) return resolve({ seasonal: true, theme: p.m === 'light' ? 'light' : 'dark' }, undefined, now);
       // Only token-shaped values: colors, rgba(), shadows, keywords. Never url().
       const safe = Object.entries(p.t).every(([k, v]) => /^[a-z0-9-]+$/.test(k) && typeof v === 'string' && v.length < 200 && /^[#a-z0-9(),.%\s-]*$/i.test(v) && !/url|expression/i.test(v));
       return safe ? /** @type {Tokens} */ ({ ...p.t, scheme: p.s }) : null;
@@ -749,7 +964,7 @@
   }
 
   const api = {
-    PRESETS, PRESET_IDS, COLOR_TOKENS, byId, activeId, build, resolve, toCss, audit, requiredDim, courseColorMap,
+    PRESETS, PRESET_IDS, GROUPS, COLOR_TOKENS, byId, activeId, scheduledFor, schedule, thanksgiving, holidayWindows, build, resolve, toCss, audit, requiredDim, courseColorMap,
     emptyCustom, customSpec, validCustom, parseFile, serialize, fileName, cleanName, paintRecord, readPaintRecord,
     BLUR_MAX, DIM_MAX, MAX_FILE_BYTES, MAX_IMAGE_BYTES,
     color: { oklch, oklchOf, contrast, luminance, over, mix, rgba, ensure, readableOn, HEX },

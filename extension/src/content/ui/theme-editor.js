@@ -41,12 +41,12 @@
 
   /**
    * @param {any} t  tokens (Gesso.themes.resolve)
-   * @param {{ size?: 'sm'|'lg', thumb?: boolean, label?: string }} [opts]
+   * @param {{ size?: 'sm'|'lg', thumb?: boolean, motif?: string }} [opts]
    */
   function miniPreview(t, opts = {}) {
     const vars = /** @type {Record<string, string>} */ ({});
     for (const k of ['bg', 'bg-elev', 'surface', 'surface-2', 'surface-3', 'border', 'border-strong', 'text', 'text-2', 'text-3',
-      'accent', 'accent-fg', 'accent-soft', 'danger', 'danger-soft', 'warn', 'warn-soft', 'ok', 'ok-soft', 'chart-1', 'chart-2', 'chart-3', 'chart-4']) vars[`--p-${k}`] = t[k];
+      'accent', 'accent-fg', 'accent-soft', 'danger', 'danger-soft', 'warn', 'warn-soft', 'ok', 'ok-soft', 'chart-1', 'chart-2', 'chart-3', 'chart-4', 'motif-b']) vars[`--p-${k}`] = t[k];
     const bar = (/** @type {string} */ cls, /** @type {string} */ w) => h('span', { class: `tp__bar ${cls}`, style: { width: w } });
     const row = (/** @type {number} */ i, /** @type {string} */ tone, /** @type {string} */ w) => h('span', { class: 'tp__row' },
       h('span', { class: 'tp__course', style: { background: `var(--p-chart-${i})` } }),
@@ -62,7 +62,8 @@
         h('span', { class: 'tp__nav' }, bar('tp__bar--t3', '48%')),
         h('span', { class: 'tp__nav tp__nav--course' }, h('span', { class: 'tp__dot', style: { background: 'var(--p-chart-1)' } }), bar('tp__bar--t3', '44%')),
         h('span', { class: 'tp__nav tp__nav--course' }, h('span', { class: 'tp__dot', style: { background: 'var(--p-chart-2)' } }), bar('tp__bar--t3', '52%')),
-        h('span', { class: 'tp__nav tp__nav--course' }, h('span', { class: 'tp__dot', style: { background: 'var(--p-chart-3)' } }), bar('tp__bar--t3', '38%'))),
+        h('span', { class: 'tp__nav tp__nav--course' }, h('span', { class: 'tp__dot', style: { background: 'var(--p-chart-3)' } }), bar('tp__bar--t3', '38%')),
+        opts.motif && h('span', { class: 'tp__motif' }, Gesso.motifs.motif(opts.motif, { size: 24 }))),
       h('span', { class: 'tp__main' },
         h('span', { class: 'tp__top' }, bar('tp__bar--t1 tp__bar--title', '34%'), h('span', { class: 'tp__search' })),
         h('span', { class: 'tp__stats' },
@@ -118,23 +119,66 @@
       input,
       extra.create
         ? h('span', { class: 'tcard__new', 'aria-hidden': 'true' }, h('span', { class: 'tcard__plus' }, icon('pencil', { size: 16 })), 'Build from the current theme')
-        : miniPreview(tokens, { thumb: !!extra.thumb }),
+        : miniPreview(tokens, { thumb: !!extra.thumb, motif: extra.motif }),
       h('span', { class: 'tcard__meta' },
         h('span', { class: 'tcard__name' }, name, selected && h('span', { class: 'tcard__check', 'aria-hidden': 'true' }, icon('check', { size: 11 }))),
-        h('span', { class: 'tcard__desc', id: `tcard-desc-${id}` }, desc)));
+        h('span', { class: 'tcard__desc', id: `tcard-desc-${id}` }, desc),
+        extra.tag && h('span', { class: 'tcard__tag' }, extra.tag)));
   }
 
+  /**
+   * Every theme, in sections (Everyday + Custom, Seasons, Holidays). One
+   * radio group: the checked card is the theme showing. Picking a card while
+   * "Change with the seasons" is on turns that off: an explicit pick wins.
+   */
   function gallery(/** @type {any} */ s) {
     const mode = modeOf(s);
     const active = T.activeId(s);
-    const cards = T.PRESETS.map((p) => card(p.id, p.name, p.description, T.resolve({ themeId: p.id }, mode), active === p.id,
-      () => update({ themeId: p.id })));
+    const deco = s.decorations !== false;
+    const pick = (/** @type {string} */ id) => update(s.seasonal ? { themeId: id, seasonal: false } : { themeId: id });
+    const presetCard = (/** @type {any} */ p) => card(p.id, p.name, p.description, T.resolve({ themeId: p.id }, mode), active === p.id,
+      () => pick(p.id), { motif: deco ? p.motif : undefined, tag: s.seasonal && active === p.id ? 'Showing now' : undefined });
     const ct = s.customTheme;
-    cards.push(ct
-      ? card('custom', ct.name || 'Custom', 'Your own theme. Edit it below.', T.resolve({ ...s, themeId: 'custom' }, mode), active === 'custom',
-        () => update({ themeId: 'custom' }), { thumb: !!ct.image })
-      : card('custom', 'Custom', 'Pick one color, or all of them.', null, false, () => createCustom(s), { create: true }));
-    return h('div', { class: 'tgallery', role: 'radiogroup', 'aria-label': 'Theme' }, cards);
+    const customCard = ct
+      ? card('custom', ct.name || 'Custom', 'Your own theme. Edit it below.', T.resolve({ ...s, seasonal: false, themeId: 'custom' }, mode), active === 'custom',
+        () => pick('custom'), { thumb: !!ct.image })
+      : card('custom', 'Custom', 'Pick one color, or all of them.', null, false, () => createCustom(s), { create: true });
+    return h('div', { class: 'tgallery' },
+      T.GROUPS.map(([group, label]) => h('div', { class: 'tgroup' },
+        h('p', { class: 'tgroup__label', id: `tgroup-${group}` }, label),
+        h('div', { class: 'tgroup__cards', role: 'radiogroup', 'aria-labelledby': `tgroup-${group}` },
+          T.PRESETS.filter((p) => p.group === group).map(presetCard),
+          group === 'everyday' && customCard))));
+  }
+
+  const fmtDay = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
+
+  /** "Change with the seasons": the switch, what's showing, and what comes next. */
+  function seasonalRow(/** @type {any} */ s) {
+    const input = /** @type {HTMLInputElement} */ (h('input', { type: 'checkbox', 'data-fkey': 'set-seasonal', id: 'set-seasonal' }));
+    input.checked = !!s.seasonal;
+    input.addEventListener('change', () => update({ seasonal: input.checked }));
+    const now = T.schedule(new Date());
+    const chosen = s.themeId === 'custom' ? (s.customTheme?.name || 'Custom') : T.byId(s.themeId).name;
+    const status = s.seasonal
+      ? h('span', { class: 'set-hint seasonal-status', role: 'status' },
+        h('strong', null, `${now.name}`), ` until ${fmtDay.format(now.until)}, then ${now.next.name} from ${fmtDay.format(now.next.starts)}. `,
+        `Your theme (${chosen}) comes back when you turn this off.`)
+      : h('span', { class: 'set-hint' }, `Seasons change by month; holidays get their own theme for a few days around them (now it would be ${now.name}). Off by default.`);
+    return h('div', { class: 'set-line seasonal-line' },
+      h('div', { class: 'set-line__text' }, h('label', { class: 'set-line__label', for: 'set-seasonal' }, 'Change with the seasons'), status),
+      h('div', { class: 'set-line__control' }, h('label', { class: 'switch' }, input, h('span', { class: 'sr-only' }, 'Change with the seasons'))));
+  }
+
+  function decorationsRow(/** @type {any} */ s) {
+    const input = /** @type {HTMLInputElement} */ (h('input', { type: 'checkbox', 'data-fkey': 'set-decorations', id: 'set-decorations' }));
+    input.checked = s.decorations !== false;
+    input.addEventListener('change', () => update({ decorations: input.checked }));
+    return h('div', { class: 'set-line' },
+      h('div', { class: 'set-line__text' },
+        h('label', { class: 'set-line__label', for: 'set-decorations' }, 'Seasonal decorations'),
+        h('span', { class: 'set-hint' }, 'A small motif in the sidebar’s empty space for seasonal and holiday themes. Never over your content.')),
+      h('div', { class: 'set-line__control' }, h('label', { class: 'switch' }, input, h('span', { class: 'sr-only' }, 'Seasonal decorations'))));
   }
 
   /** A new custom theme from the theme showing now (its preset and accent). */
@@ -144,7 +188,7 @@
     ct.name = `My ${T.byId(base).name}`;
     ct.accent = s.accent || '';
     ct.courseColors = s.courseColors === 'theme' ? 'theme' : 'canvas';
-    update({ themeId: 'custom', customTheme: ct }).then(() => {
+    update({ themeId: 'custom', customTheme: ct, seasonal: false }).then(() => {
       const root = /** @type {any} */ (Gesso.overlays.root()?.getRootNode());
       const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches;
       setTimeout(() => root?.querySelector?.('#set-custom')?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' }), 60);
@@ -204,13 +248,17 @@
         h('div', { class: 'set-block__head' },
           h('span', { class: 'set-line__label' }, 'Theme'),
           h('span', { class: 'set-hint' }, 'Every theme has a dark and a light version. Canvas pages follow the mode when their dark mode is “Match”.')),
+        seasonalRow(s),
         gallery(s)),
       row('Mode', null, segmented('set-theme', 'Mode', modeOf(s), [['dark', 'Dark'], ['light', 'Light']], (v) => update({ theme: v }))),
-      !custom && row('Accent color', 'Buttons, links, highlights and the selected item. The first swatch is the theme’s own.', accentPicker(s)),
+      !custom && row('Accent color', s.seasonal
+        ? 'Seasonal themes keep their own accent; a color you pick here applies when “Change with the seasons” is off.'
+        : 'Buttons, links, highlights and the selected item. The first swatch is the theme’s own.', accentPicker(s)),
       !custom && row('Course colors', s.courseColors === 'theme' ? 'Courses use the theme’s palette, in dashboard order.' : 'The colors set in Canvas (course settings).',
         h('div', { class: 'set-inline' },
           s.courseColors === 'theme' && paletteStrip(t),
           segmented('set-course-colors', 'Course colors', s.courseColors === 'theme' ? 'theme' : 'canvas', [['canvas', 'Canvas'], ['theme', 'Theme palette']], (v) => update({ courseColors: v })))),
+      decorationsRow(s),
       row('Density', 'Compact fits more rows on screen.',
         segmented('set-density', 'Density', s.density, [['comfortable', 'Comfortable'], ['compact', 'Compact']], (v) => update({ density: v }))));
     afterMount(el, s);

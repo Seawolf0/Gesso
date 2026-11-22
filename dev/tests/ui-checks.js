@@ -143,10 +143,87 @@
     await waitFor(() => host.getAttribute('data-density') === 'comfortable' && Gesso.store.get().settings.dueSoonDays === 7, 1000, 'reset');
   });
 
+  // ---- Theme switching must not depend on storage.onChanged reaching this tab ----
+  // (1.2 bug: a card click saved the theme but nothing changed until a reload.)
+  // These run with the mock's storage events switched off, so only the app's
+  // own same-tab path can make them pass.
+  const T = Gesso.themes;
+  const applied = (id, mode) => {
+    const t = T.resolve({ themeId: id }, mode);
+    return host.getAttribute('data-theme-id') === id && host.style.getPropertyValue('--bg') === t.bg && host.getAttribute('data-theme') === t.scheme;
+  };
+  const selected = (id) => {
+    const input = $(`[data-fkey="theme:${id}"]`);
+    return !!input && input.checked && !!input.closest('.tcard--on') && !!$(`.tcard--on [data-fkey="theme:${id}"]`) && shadow.querySelectorAll('.tcard--on').length === 1;
+  };
+  const clickCard = (id) => $(`[data-fkey="theme:${id}"]`).closest('label').click();
+  const withoutStorageEvents = async (fn) => {
+    window.__mockStorageEvents = 'none';
+    try { await fn(); } finally { window.__mockStorageEvents = undefined; await Gesso.settings.reset(); await Gesso.settings.update({ customTheme: null }); await sleep(100); }
+  };
+
+  await check('theme switch (no storage events): a card click applies the theme and selects the card at once', () => withoutStorageEvents(async () => {
+    await go('/settings');
+    await waitFor(() => $('[data-fkey="theme:linen"]'), 2000, 'gallery');
+    clickCard('linen');
+    await waitFor(() => applied('linen', 'dark'), 1000, 'Linen colors applied without a reload');
+    await waitFor(() => selected('linen'), 1000, 'Linen card selected (ring, check, checked radio)');
+    clickCard('christmas');
+    await waitFor(() => applied('christmas', 'dark') && selected('christmas'), 1000, 'then Christmas');
+    ok(!host.style.getPropertyValue('--bg').startsWith(T.resolve({ themeId: 'linen' }, 'dark').bg), 'old colors gone');
+  }));
+
+  await check('theme switch (no storage events): with "Change with the seasons" on, a card click turns it off and applies', () => withoutStorageEvents(async () => {
+    await go('/settings');
+    await waitFor(() => $('[data-fkey="set-seasonal"]'), 2000, 'switch');
+    $('[data-fkey="set-seasonal"]').click();
+    const today = T.scheduledFor(new Date());
+    await waitFor(() => applied(today, 'dark') && selected(today), 1000, 'seasonal theme applied and selected');
+    clickCard('paper');
+    await waitFor(() => applied('paper', 'dark') && selected('paper'), 1000, 'Paper applied and selected');
+    ok(Gesso.store.get().settings.seasonal === false && !$('.seasonal-status'), 'seasonal mode off');
+  }));
+
+  await check('theme switch (no storage events): mode, accent and the custom editor apply at once', () => withoutStorageEvents(async () => {
+    await go('/settings');
+    await waitFor(() => $('[data-fkey="theme:harbor"]'), 2000, 'gallery');
+    clickCard('harbor');
+    await waitFor(() => applied('harbor', 'dark'), 1000, 'Harbor');
+    $('[data-fkey="set-theme:light"]').click();
+    await waitFor(() => applied('harbor', 'light') && selected('harbor'), 1000, 'light mode applied');
+    $('[data-fkey="set-accent:#e0876a"]').click();
+    await waitFor(() => host.style.getPropertyValue('--accent') === '#e0876a' && $('[data-fkey="set-accent:#e0876a"]').getAttribute('aria-checked') === 'true', 1000, 'accent applied and checked');
+    $('[data-fkey="theme:custom"]').closest('label').click();
+    await waitFor(() => $('#set-custom') && host.getAttribute('data-theme-id') === 'custom' && selected('custom'), 1000, 'custom theme applied, editor open');
+    const well = $('[data-fkey="ced:accent"]');
+    well.value = '#2a9d8f'; well.dispatchEvent(new Event('change'));
+    await waitFor(() => host.style.getPropertyValue('--accent') === '#2a9d8f' && $('[data-fkey="ced:accent"]')?.value === '#2a9d8f', 1000, 'custom accent applied and shown');
+  }));
+
+  await check('theme switch: another tab’s change applies here (storage event, or the cross-tab ping alone)', async () => {
+    ok(location.protocol.startsWith('http'), 'run over http (test.sh serves it): BroadcastChannel needs a real origin');
+    await go('/settings');
+    await waitFor(() => $('[data-fkey="theme:dusk"]'), 2000, 'gallery');
+    // 1. Another tab writes; this tab hears it through storage.onChanged.
+    const cur = (await browser.storage.local.get('settings')).settings || {};
+    await browser.storage.local.set({ settings: { ...Gesso.settings.DEFAULTS, ...cur, themeId: 'dusk' } });
+    await waitFor(() => applied('dusk', 'dark') && selected('dusk'), 1000, 'Dusk from the storage event');
+    // 2. The storage event never arrives: the cross-tab ping makes this tab re-read.
+    window.__mockStorageEvents = 'none';
+    try {
+      await browser.storage.local.set({ settings: { ...Gesso.settings.DEFAULTS, ...cur, themeId: 'graphite' } });
+      const other = new BroadcastChannel('gesso-settings');
+      other.postMessage({ t: 'settings' });
+      other.close();
+      await waitFor(() => applied('graphite', 'dark') && selected('graphite'), 1500, 'Graphite from the ping');
+    } finally { window.__mockStorageEvents = undefined; }
+    await Gesso.settings.reset();
+  });
+
   await check('settings: theme gallery switches themes; the custom editor previews live and saves on change', async () => {
     await go('/settings');
     const card = await waitFor(() => $('[data-fkey="theme:harbor"]'), 2000, 'gallery');
-    ok($('.tgallery').getAttribute('role') === 'radiogroup', 'radiogroup');
+    ok(shadow.querySelectorAll('.tgallery [role="radiogroup"][aria-labelledby]').length === 3, 'a labelled radio group per section');
     card.click();
     const harbor = Gesso.themes.resolve({ themeId: 'harbor' }, 'dark');
     await waitFor(() => host.style.getPropertyValue('--bg') === harbor.bg && host.getAttribute('data-theme-id') === 'harbor', 1000, 'harbor applied');
@@ -180,6 +257,29 @@
     ok(Gesso.themes.parseFile(Gesso.diagnostics.lastThemeExport.text).ok, 'exported file parses');
     await Gesso.settings.reset();
     await waitFor(() => host.getAttribute('data-theme-id') === 'gesso', 1000, 'reset to Gesso');
+  });
+
+  await check('settings: change with the seasons, decorations, and an explicit pick turning it off', async () => {
+    await go('/settings');
+    await Gesso.settings.update({ themeId: 'harbor' });
+    const sw = await waitFor(() => $('[data-fkey="set-seasonal"]'), 2000, 'seasonal switch');
+    sw.click();
+    const today = Gesso.themes.scheduledFor(new Date());
+    await waitFor(() => host.getAttribute('data-theme-id') === today, 1000, 'scheduled theme applied');
+    await waitFor(() => $('.seasonal-status'), 1000, 'status line');
+    ok($('.seasonal-status').textContent.includes(Gesso.themes.byId(today).name) && /Harbor/.test($('.seasonal-status').textContent), 'names the showing and the chosen theme');
+    ok($(`.tcard--on [data-fkey="theme:${today}"]`) && /Showing now/.test($('.tcard--on').textContent), 'showing-now card');
+    const motif = await waitFor(() => $('.sidebar .sidebar-motif'), 1000, 'sidebar motif');
+    eq(motif.getAttribute('data-motif'), Gesso.themes.byId(today).motif);
+    $('[data-fkey="set-decorations"]').click();
+    await waitFor(() => !$('.sidebar .sidebar-motif') && !$('.tp__motif'), 1000, 'decorations off');
+    $('[data-fkey="set-decorations"]').click();
+    await waitFor(() => $('.sidebar .sidebar-motif'), 1000, 'decorations back');
+    // Picking a theme turns the schedule off.
+    $('[data-fkey="theme:paper"]').click();
+    await waitFor(() => Gesso.store.get().settings.seasonal === false && host.getAttribute('data-theme-id') === 'paper', 1000, 'explicit pick wins');
+    await waitFor(() => !$('.sidebar .sidebar-motif'), 1000, 'everyday theme: no motif');
+    await Gesso.settings.reset();
   });
 
   await check('settings: launcher toggle and GPA scale dialog', async () => {

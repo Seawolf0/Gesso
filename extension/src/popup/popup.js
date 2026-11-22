@@ -99,7 +99,7 @@
     const s = themeSettings(settings);
     const t = T.resolve(s);
     paint(t);
-    try { localStorage.setItem(PAINT_KEY, T.paintRecord(t)); } catch { /* fine */ }
+    try { localStorage.setItem(PAINT_KEY, T.paintRecord(t, s)); } catch { /* fine */ }
     // The custom theme's image, dimmed exactly as in the app.
     const img = T.activeId(s) === 'custom' ? s.customTheme?.image : null;
     const thumb = img && image && image.id === img.id ? image.thumb : null;
@@ -214,6 +214,8 @@
   api.storage.onChanged.addListener((/** @type {any} */ changes, /** @type {string} */ area) => {
     if (area === 'local' && (changes['popup.summary'] || changes.settings || changes['theme.image'])) load();
   });
+  // Backup for the storage event: a Canvas tab that changed settings pings the popup.
+  api.runtime.onMessage?.addListener((/** @type {any} */ msg) => { if (msg && msg.t === 'gesso:settings') load(); });
   // Exposed for the dev preview.
   /** @type {any} */ (window).__popup = { render, countdown, whenText };
 })();

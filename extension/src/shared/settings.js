@@ -19,6 +19,8 @@
    * @property {string} themeId               A preset id (Gesso.themes.PRESET_IDS) or 'custom'.
    * @property {string} accent                Hex accent replacing the preset's; '' = the theme's own accent.
    * @property {'canvas'|'theme'} courseColors  Course colors: Canvas's, or the theme's palette (presets; the custom theme has its own).
+   * @property {boolean} seasonal           "Change with the seasons": show the scheduled seasonal/holiday theme (Gesso.themes.schedule); off by default.
+   * @property {boolean} decorations        Small motifs for seasonal and holiday themes (sidebar, previews).
    * @property {any} customTheme         The one custom theme (its image pixels live in storage key `theme.image`).
    * @property {'comfortable'|'compact'} density
    * @property {number} dueSoonDays           What counts as "due soon".
@@ -43,6 +45,8 @@
     accent: '',
     courseColors: 'canvas',
     customTheme: null,
+    seasonal: false,
+    decorations: true,
     density: 'comfortable',
     dueSoonDays: 7,
     defaultView: 'dashboard',
@@ -89,6 +93,8 @@
       if (s.themeId === 'custom' && !s.customTheme) s.themeId = 'gesso';
     }
     if (s.courseColors !== 'theme') s.courseColors = 'canvas';
+    s.seasonal = s.seasonal === true;
+    s.decorations = s.decorations !== false;
     return s;
   }
 
@@ -116,16 +122,78 @@
     if (patch.theme) writeMirror('theme', patch.theme);
     // Native dark mode decides synchronously at document_start from its own mirror.
     if (['theme', 'nativeDark', 'nativeDarkOff', 'darkPdfs', 'darkEditor'].some((k) => k in patch)) writeNativeDarkMirror(next);
+    changed(next);
     return next;
   }
 
-  /** @param {(s: Settings) => void} fn  Called when settings change in any tab. */
-  function onChange(fn) {
-    Gesso.browser.storage.onChanged.addListener((changes, area) => {
-      if (area === 'local' && changes[STORAGE_KEY]) {
-        fn(normalize(changes[STORAGE_KEY].newValue));
+  // ---------------------------------------------------------------------------
+  // Change notification
+  // ---------------------------------------------------------------------------
+  //
+  // A tab must never depend on storage.onChanged to see its *own* change: in
+  // 1.2 a theme card click was saved but the tab only changed after a reload,
+  // because the tab's only update path was that event coming back to it. So:
+  //   1. this tab: update()/reset() notify local listeners right after the write
+  //   2. other tabs: storage.onChanged, backed up by a BroadcastChannel ping
+  //      (no data in it; the receiver re-reads storage, so a page script that
+  //      posts on the channel can only trigger a harmless re-read)
+  //   3. the toolbar popup (an extension page, outside the Canvas origin's
+  //      channel): storage.onChanged, backed up by a runtime message ping
+  // Each distinct settings value is delivered once (the event or ping that
+  // follows a local notification is dropped), and listeners are isolated: one
+  // that throws can't stop the others.
+
+  /** @type {Set<(s: Settings) => void>} */
+  const listeners = new Set();
+  let lastDelivered = '';
+  /** @type {BroadcastChannel|null} */
+  let channel = null;
+  let wired = false;
+  const CHANNEL = 'gesso-settings';
+
+  /** Deliver `s` to every listener in this tab, unless it was just delivered. */
+  function deliver(/** @type {any} */ raw) {
+    const s = normalize(raw);
+    const sig = JSON.stringify(s);
+    if (sig === lastDelivered) return;
+    lastDelivered = sig;
+    for (const fn of [...listeners]) {
+      try { fn(s); } catch (err) {
+        Gesso.log.error('A settings listener failed', err);
+        Gesso.health?.noteError?.(err, 'settings listener');
       }
+    }
+  }
+
+  /** After this tab wrote settings: tell this tab at once, and ping the others. */
+  function changed(/** @type {Settings} */ next) {
+    deliver(next);
+    try { channel?.postMessage({ t: 'settings' }); } catch { /* channel closed */ }
+    // Nobody listening (popup closed) rejects; that's fine.
+    try { Promise.resolve(Gesso.browser.runtime?.sendMessage?.({ t: 'gesso:settings' })).catch(() => {}); } catch { /* no runtime */ }
+  }
+
+  function wire() {
+    if (wired) return;
+    wired = true;
+    Gesso.browser.storage.onChanged.addListener((/** @type {any} */ changes, /** @type {string} */ area) => {
+      if (area === 'local' && changes[STORAGE_KEY]) deliver(changes[STORAGE_KEY].newValue);
     });
+    try {
+      channel = new BroadcastChannel(CHANNEL);
+      channel.onmessage = () => { load().then(deliver).catch(() => {}); };
+    } catch { /* no BroadcastChannel here (e.g. an extension page): storage events still work */ }
+  }
+
+  /**
+   * Called when settings change, in this tab (right after the write) or in
+   * another tab. Returns a function that stops listening.
+   * @param {(s: Settings) => void} fn
+   */
+  function onChange(fn) {
+    wire();
+    listeners.add(fn);
+    return () => listeners.delete(fn);
   }
 
   /**
@@ -187,6 +255,7 @@
     writeMirror('mode', next.mode);
     writeMirror('theme', next.theme);
     writeNativeDarkMirror(next);
+    changed(next);
     return next;
   }
 

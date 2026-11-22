@@ -42,7 +42,35 @@
     .pstrip__c { width: 11px; }
 
     /* ---------- theme gallery ---------- */
-    .tgallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); gap: var(--sp-3); margin-top: var(--sp-4); }
+    .tgallery { display: flex; flex-direction: column; gap: var(--sp-5); margin-top: var(--sp-4); }
+    .tgroup__label { margin-bottom: var(--sp-2); font-size: var(--fs-xs); font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+    .tgroup__cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); gap: var(--sp-3); }
+    .tcard__tag {
+      align-self: flex-start; margin-top: 4px; padding: 1px 7px; border-radius: var(--r-full);
+      font-size: var(--fs-xs); font-weight: 650; background: var(--accent-soft); color: var(--accent-text);
+    }
+    .seasonal-status strong { color: var(--text); font-weight: 650; }
+    .seasonal-line { margin-top: var(--sp-4); padding: var(--sp-3) var(--sp-4); border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface-2); }
+    .seasonal-line .set-line__text { max-width: 620px; }
+
+    /* ---------- decorations (ui/motifs.js) ---------- */
+    .motif { display: block; overflow: visible; color: var(--text-3); }
+    .motif .m-l { fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+    .motif .m-al { fill: none; stroke: var(--accent); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+    .motif .m-a { fill: var(--accent); stroke: none; }
+    .motif .m-b { fill: var(--motif-b, var(--accent)); stroke: none; }
+    .motif .m-w { fill: var(--accent); stroke: none; opacity: .12; }
+    /* In the sidebar's empty space only, and only when there's room for it. */
+    .nav__spacer { position: relative; container-type: size; }
+    .sidebar-motif { position: absolute; left: 50%; bottom: var(--sp-4); transform: translateX(-50%); opacity: .55; pointer-events: none; }
+    @container (max-height: 140px) { .sidebar-motif { display: none; } }
+    @media (max-width: 1080px) { .sidebar-motif { display: none; } }
+    .tp__motif { margin-top: auto; align-self: center; opacity: .6; }
+    .tp__motif .motif { color: var(--p-text-3); }
+    .tp__motif .m-al { stroke: var(--p-accent); }
+    .tp__motif .m-a, .tp__motif .m-w { fill: var(--p-accent); }
+    .tp__motif .m-b { fill: var(--p-motif-b); }
+    .tp--lg .tp__motif .motif { width: 32px; height: 32px; }
     .tcard {
       position: relative; display: flex; flex-direction: column; gap: var(--sp-2);
       padding: 6px; border-radius: var(--r-md); cursor: pointer;

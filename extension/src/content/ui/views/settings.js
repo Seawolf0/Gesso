@@ -2,7 +2,8 @@
 /**
  * #/settings (including the Canvas-pages dark mode section).
  * Stateless: every control writes settings right away; the store
- * re-renders, and other tabs pick changes up through storage events.
+ * re-renders right away (Gesso.settings notifies this tab itself), and
+ * other tabs and the popup pick changes up too (storage events, plus pings).
  *
  *   Appearance      theme gallery, mode, accent, course colors, density (ui/theme-editor.js)
  *   Custom theme    the custom theme editor, when the custom theme is selected
