@@ -1,4 +1,6 @@
-/* Toolbar popup. Same palette as the app (content/ui/styles/tokens.js). */
+/* Toolbar popup. These are the default theme (Gesso); popup.js paints the
+   theme in use from shared/themes.js, and caches it so the next open paints
+   it before anything loads. */
 :root {
   color-scheme: dark;
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
@@ -7,7 +9,7 @@
   --text: #e9ecf2; --text-2: #a9b1bf; --text-3: #808a9b;
   --danger: #f87171; --danger-soft: rgba(248, 113, 113, .14);
   --warn: #fbbf24; --warn-soft: rgba(251, 191, 36, .13);
-  --accent: #8b9cff; --accent-fg: #0b0d12; --accent-text: #8b9cff;
+  --accent: #8b9cff; --accent-fg: #0b0d12; --accent-text: #8b9cff; --focus: #8b9cff;
 }
 :root[data-theme="light"] {
   color-scheme: light;

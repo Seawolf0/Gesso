@@ -15,8 +15,11 @@
   /**
    * @typedef {Object} Settings
    * @property {'gesso'|'classic'} mode     Whether Gesso replaces the Canvas dashboard.
-   * @property {'dark'|'light'} theme
-   * @property {string} accent                Hex accent color.
+   * @property {'dark'|'light'} theme      The mode: which variant of the theme shows. Native-page dark mode follows it.
+   * @property {string} themeId               A preset id (Gesso.themes.PRESET_IDS) or 'custom'.
+   * @property {string} accent                Hex accent replacing the preset's; '' = the theme's own accent.
+   * @property {'canvas'|'theme'} courseColors  Course colors: Canvas's, or the theme's palette (presets; the custom theme has its own).
+   * @property {any} customTheme         The one custom theme (its image pixels live in storage key `theme.image`).
    * @property {'comfortable'|'compact'} density
    * @property {number} dueSoonDays           What counts as "due soon".
    * @property {'dashboard'|'assignments'|'calendar'|'grades'} defaultView  Opened when Canvas loads without a hash
@@ -36,7 +39,10 @@
   const DEFAULTS = Object.freeze({
     mode: 'gesso',
     theme: 'dark',
-    accent: '#8b9cff',
+    themeId: 'gesso',
+    accent: '',
+    courseColors: 'canvas',
+    customTheme: null,
     density: 'comfortable',
     dueSoonDays: 7,
     defaultView: 'dashboard',
@@ -56,12 +62,34 @@
   async function load() {
     try {
       const stored = await Gesso.browser.storage.local.get(STORAGE_KEY);
-      return { ...DEFAULTS, ...(stored[STORAGE_KEY] || {}) };
+      return normalize(stored[STORAGE_KEY]);
     } catch (err) {
       Gesso.log.warn('Could not read settings, using defaults', err);
       Gesso.health?.noteError(err, 'settings.load');
       return { ...DEFAULTS };
     }
+  }
+
+  /**
+   * Stored settings over the defaults, with the theme keys checked: a bad
+   * theme id or custom theme falls back instead of breaking the page.
+   * @param {any} stored
+   * @returns {Settings}
+   */
+  function normalize(stored) {
+    const s = { ...DEFAULTS, ...(stored && typeof stored === 'object' ? stored : {}) };
+    const T = Gesso.themes;
+    // Before themes (Gesso 1.1), the periwinkle was stored as the accent even when
+    // never changed. Read it as "the theme's accent", so other presets keep theirs.
+    if (stored && !('themeId' in stored) && String(s.accent).toLowerCase() === '#8b9cff') s.accent = '';
+    if (s.accent !== '' && !/^#[0-9a-f]{6}$/i.test(s.accent)) s.accent = '';
+    if (T) {
+      if (!T.validCustom(s.customTheme)) s.customTheme = null;
+      if (s.themeId !== 'custom' && !T.PRESET_IDS.includes(s.themeId)) s.themeId = 'gesso';
+      if (s.themeId === 'custom' && !s.customTheme) s.themeId = 'gesso';
+    }
+    if (s.courseColors !== 'theme') s.courseColors = 'canvas';
+    return s;
   }
 
   /**
@@ -95,7 +123,7 @@
   function onChange(fn) {
     Gesso.browser.storage.onChanged.addListener((changes, area) => {
       if (area === 'local' && changes[STORAGE_KEY]) {
-        fn({ ...DEFAULTS, ...(changes[STORAGE_KEY].newValue || {}) });
+        fn(normalize(changes[STORAGE_KEY].newValue));
       }
     });
   }
@@ -103,7 +131,7 @@
   /**
    * Synchronous copies of a few settings in the Canvas origin's localStorage
    * (see file comment). Only meaningful in the content script.
-   * @param {'mode'|'theme'|'nativeDark'} name
+   * @param {'mode'|'theme'|'nativeDark'|'paint'} name
    */
   function readMirror(name) {
     try {
@@ -113,7 +141,7 @@
     }
   }
 
-  /** @param {'mode'|'theme'|'nativeDark'} name @param {string} value */
+  /** @param {'mode'|'theme'|'nativeDark'|'paint'} name @param {string} value */
   function writeMirror(name, value) {
     try {
       localStorage.setItem(MIRROR_PREFIX + name, value);
@@ -145,7 +173,7 @@
     }
   }
 
-  /** Back to defaults, keeping per-course data (hidden courses, credits, GPA exclusions). */
+  /** Back to defaults, keeping per-course data (hidden courses, credits, GPA exclusions) and the custom theme. */
   function reset() {
     const run = queue.then(applyReset);
     queue = run.catch(() => {});
@@ -154,7 +182,7 @@
 
   async function applyReset() {
     const cur = await load();
-    const next = { ...DEFAULTS, hiddenCourses: cur.hiddenCourses, courseCredits: cur.courseCredits, gpaExcluded: cur.gpaExcluded };
+    const next = { ...DEFAULTS, hiddenCourses: cur.hiddenCourses, courseCredits: cur.courseCredits, gpaExcluded: cur.gpaExcluded, customTheme: cur.customTheme };
     await Gesso.browser.storage.local.set({ [STORAGE_KEY]: next });
     writeMirror('mode', next.mode);
     writeMirror('theme', next.theme);
@@ -162,5 +190,5 @@
     return next;
   }
 
-  Gesso.settings = { DEFAULTS, load, update, reset, onChange, readMirror, writeMirror, readModeMirror, writeModeMirror, writeNativeDarkMirror, readNativeDarkMirror };
+  Gesso.settings = { DEFAULTS, load, normalize, update, reset, onChange, readMirror, writeMirror, readModeMirror, writeModeMirror, writeNativeDarkMirror, readNativeDarkMirror };
 })();

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Gesso",
   "short_name": "Gesso",
-  "version": "0.11.0",
+  "version": "1.1.0",
   "description": "An unofficial dashboard for Canvas: a faster, dark-first view of your courses. Runs entirely on your Mac. Not affiliated with Instructure.",
   "icons": {
     "48": "icons/icon-48.png",
@@ -41,6 +41,7 @@
         "src/shared/settings.js",
         "src/shared/time.js",
         "src/shared/color.js",
+        "src/shared/themes.js",
 
         "src/content/api/client.js",
         "src/content/api/canvas.js",
@@ -66,6 +67,7 @@
 
         "src/content/ui/dom.js",
         "src/content/ui/icons.js",
+        "src/content/ui/appearance.js",
         "src/content/ui/styles/tokens.js",
         "src/content/ui/styles/base.js",
         "src/content/ui/styles/shell.js",
@@ -74,6 +76,7 @@
         "src/content/ui/styles/detail.js",
         "src/content/ui/styles/calendar.js",
         "src/content/ui/styles/grades.js",
+        "src/content/ui/styles/themes.js",
         "src/content/ui/sanitize.js",
         "src/content/ui/router.js",
         "src/content/ui/deeplink.js",
@@ -86,6 +89,7 @@
         "src/content/ui/shortcuts.js",
         "src/content/ui/assignment-table.js",
         "src/content/ui/course-settings.js",
+        "src/content/ui/theme-editor.js",
         "src/content/ui/views/placeholder.js",
         "src/content/ui/views/dashboard.js",
         "src/content/ui/views/assignments.js",

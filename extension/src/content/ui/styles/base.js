@@ -60,7 +60,8 @@
     .btn--icon { width: 34px; padding: 0; }
     .btn--sm { height: 28px; font-size: var(--fs-sm); padding: 0 var(--sp-2); }
 
-    .link { color: var(--accent-text); font-weight: 550; }
+    /* --link-deco: themes whose accent is a neutral (Graphite) underline links so they still read as links. */
+    .link { color: var(--accent-text); font-weight: 550; text-decoration: var(--link-deco, none); text-underline-offset: 2px; text-decoration-thickness: 1px; }
     .link:hover { text-decoration: underline; text-underline-offset: 2px; }
 
     /* ---------- pills ---------- */

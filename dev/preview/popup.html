@@ -7,6 +7,7 @@
     ?state=loggedout   last sync failed with "logged out"
     ?state=stale       last sync 2 days ago
     ?theme=light
+    ?themeId=linen     a theme preset
   Clicks are captured in window.__opened instead of opening tabs.
 -->
 <html lang="en">
@@ -34,7 +35,7 @@
       };
       browser.windows = { update: async () => {} };
       window.close = () => { window.__closed = true; };
-      if (q.get('theme')) await browser.storage.local.set({ settings: { ...Gesso.settings.DEFAULTS, theme: q.get('theme') } });
+      if (q.get('theme') || q.get('themeId')) await browser.storage.local.set({ settings: { ...Gesso.settings.DEFAULTS, theme: q.get('theme') || 'dark', themeId: q.get('themeId') || 'gesso' } });
       const state = q.get('state');
       if (state !== 'empty') {
         window.__mockLatency = 0;

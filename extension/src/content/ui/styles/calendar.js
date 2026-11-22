@@ -37,12 +37,12 @@
     .cal-loading { font-size: var(--fs-sm); }
 
     /* ======================= workload heat ======================= */
-    /* --heat tints a whole day; --heat-strong marks it (bars, dots, legend). One accent, four steps. */
+    /* --heat tints a whole day; --heat-strong marks it (bars, dots, legend). One color (--heat-base, the accent), four steps. */
     .heat-0 { --heat: transparent; --heat-strong: transparent; }
-    .heat-1 { --heat: color-mix(in srgb, var(--accent) 7%, transparent);  --heat-strong: color-mix(in srgb, var(--accent) 35%, transparent); }
-    .heat-2 { --heat: color-mix(in srgb, var(--accent) 13%, transparent); --heat-strong: color-mix(in srgb, var(--accent) 55%, transparent); }
-    .heat-3 { --heat: color-mix(in srgb, var(--accent) 21%, transparent); --heat-strong: color-mix(in srgb, var(--accent) 78%, transparent); }
-    .heat-4 { --heat: color-mix(in srgb, var(--accent) 31%, transparent); --heat-strong: var(--accent); }
+    .heat-1 { --heat: color-mix(in srgb, var(--heat-base) 7%, transparent);  --heat-strong: color-mix(in srgb, var(--heat-base) 35%, transparent); }
+    .heat-2 { --heat: color-mix(in srgb, var(--heat-base) 13%, transparent); --heat-strong: color-mix(in srgb, var(--heat-base) 55%, transparent); }
+    .heat-3 { --heat: color-mix(in srgb, var(--heat-base) 21%, transparent); --heat-strong: color-mix(in srgb, var(--heat-base) 78%, transparent); }
+    .heat-4 { --heat: color-mix(in srgb, var(--heat-base) 31%, transparent); --heat-strong: var(--heat-base); }
 
     /* ======================= sidebar ======================= */
     .cal-side {

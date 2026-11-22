@@ -66,6 +66,8 @@
     host.id = 'gesso-root';
     Gesso.own.add(host); // registered before it's in the page, so no observer ever sees it as foreign
     host.setAttribute('data-theme', light ? 'light' : 'dark');
+    // The last theme's exact colors, so the first frame isn't the default theme.
+    Gesso.appearance.paintFromMirror(host);
     body.append(host);
     html.append(head, body);
 

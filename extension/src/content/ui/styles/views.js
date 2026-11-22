@@ -445,7 +445,7 @@
     .keys--here .set-legend { color: var(--accent-text); }
 
     /* ======================= settings (incl. native dark mode) ======================= */
-    .settings-page { display: flex; flex-direction: column; gap: var(--gap); max-width: 760px; }
+    .settings-page { display: flex; flex-direction: column; gap: var(--gap); max-width: 920px; }
     .set-row { margin-bottom: var(--sp-4); }
     .set-group { border: 0; margin: 0 0 var(--sp-4); padding: 0; min-width: 0; }
     .set-group:disabled { opacity: .5; }

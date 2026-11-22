@@ -145,6 +145,15 @@
     await wait(() => !shadow.querySelector('main .skel'), 3000);
     audit(r);
   }
+  // The custom theme editor (Settings → Appearance), then back to the theme under test.
+  const before = Gesso.store.get().settings;
+  await Gesso.settings.update({ themeId: 'custom', customTheme: { ...Gesso.themes.emptyCustom(Gesso.themes.activeId(before)), accent: '#2a9d8f' } });
+  location.hash = '/settings';
+  await sleep(300);
+  await wait(() => shadow.querySelector('#set-custom'), 3000);
+  audit('/settings (custom theme editor)');
+  await Gesso.settings.update({ themeId: before.themeId, customTheme: before.customTheme });
+  await sleep(150);
   // Dialogs
   location.hash = '/';
   await sleep(200);

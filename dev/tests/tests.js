@@ -1495,6 +1495,167 @@
     ok(/different files/.test(r.problems.join(' ')), r.problems.join(' '));
   });
 
+  // ---- themes ----------------------------------------------------------------
+  {
+    const T = Gesso.themes;
+    const HEXRE = /^#[0-9a-f]{6}$/;
+    await test('themes: every preset, both modes, has every token and passes the contrast audit', () => {
+      ok(T.PRESETS.length >= 4 && T.PRESETS.length <= 6, 'four to six presets');
+      for (const p of T.PRESETS) {
+        ok(p.name && p.description, `${p.id} named`);
+        for (const mode of ['dark', 'light']) {
+          const t = T.resolve({ themeId: p.id }, mode);
+          eq(t.scheme, mode, `${p.id} ${mode} scheme`);
+          for (const k of T.COLOR_TOKENS) ok(HEXRE.test(t[k]) || /^rgba\(/.test(t[k]), `${p.id} ${mode} --${k} = ${t[k]}`);
+          const fails = T.audit(t);
+          eq(fails.map((f) => `${f.label} ${f.ratio.toFixed(2)}`), [], `${p.id} ${mode}`);
+        }
+      }
+    });
+    await test('themes: hierarchy goes background → surface → raised, in both modes', () => {
+      for (const p of T.PRESETS) {
+        for (const mode of ['dark', 'light']) {
+          const t = T.resolve({ themeId: p.id }, mode);
+          const L = (k) => T.color.oklchOf(t[k]).l;
+          const dir = mode === 'dark' ? 1 : -1;
+          ok(dir * (L('surface-2') - L('surface')) > 0 && dir * (L('surface-3') - L('surface-2')) > 0, `${p.id} ${mode} raised surfaces step away`);
+          ok(mode === 'dark' ? L('surface') > L('bg') : L('surface') >= L('bg'), `${p.id} ${mode} surfaces sit above the background`);
+          ok(T.color.contrast(t.text, t.bg) > T.color.contrast(t['text-2'], t.bg) && T.color.contrast(t['text-2'], t.bg) > T.color.contrast(t['text-3'], t.bg), `${p.id} ${mode} text ranks`);
+        }
+      }
+    });
+    await test('themes: Gesso keeps its original palette exactly', () => {
+      const d = T.resolve({ themeId: 'gesso' }, 'dark');
+      const l = T.resolve({ themeId: 'gesso' }, 'light');
+      eq([d.bg, d.surface, d.text, d['text-3'], d.accent, d.danger], ['#0b0d12', '#14171e', '#e9ecf2', '#808a9b', '#8b9cff', '#f87171']);
+      eq([l.bg, l.surface, l['text-3'], l['accent-text'], l.focus], ['#f3f4f7', '#ffffff', '#646d7e', '#2039b6', '#2039b6']);
+      eq(T.resolve({}, 'dark').bg, '#0b0d12', 'no settings = Gesso');
+    });
+    await test('themes: a chosen accent replaces the preset\'s, with readable derived colors', () => {
+      for (const p of T.PRESETS) for (const mode of ['dark', 'light']) for (const accent of ['#e0876a', '#4f7cff', '#6cc17e', '#ffffff', '#111111']) {
+        const t = T.resolve({ themeId: p.id, accent }, mode);
+        eq(t.accent, accent);
+        eq(T.audit(t).map((f) => f.label), [], `${p.id} ${mode} ${accent}`);
+      }
+      eq(T.resolve({ themeId: 'harbor', accent: '' }, 'dark').accent, T.resolve({ themeId: 'harbor' }, 'dark').accent, "'' = theme accent");
+    });
+    await test('settings: the old default accent reads as the theme accent; bad theme keys fall back', () => {
+      eq(Gesso.settings.normalize({ accent: '#8b9cff', theme: 'light' }).accent, '', 'pre-theme default');
+      eq(Gesso.settings.normalize({ accent: '#8b9cff', themeId: 'linen' }).accent, '#8b9cff', 'chosen after themes: kept');
+      eq(Gesso.settings.normalize({ themeId: 'neon' }).themeId, 'gesso');
+      eq(Gesso.settings.normalize({ themeId: 'custom', customTheme: null }).themeId, 'gesso');
+      eq(Gesso.settings.normalize({ themeId: 'custom', customTheme: { name: 'x' } }).customTheme, null, 'invalid custom dropped');
+      eq(Gesso.settings.normalize({ courseColors: 'rainbow' }).courseColors, 'canvas');
+    });
+    await test('custom theme: one accent gives a coherent, readable theme in both modes', () => {
+      for (const accent of ['#e0876a', '#2a9d8f', '#c9a227', '#7b2cbf', '#808080']) for (const base of T.PRESET_IDS) {
+        const s = { themeId: 'custom', customTheme: { ...T.emptyCustom(base), accent } };
+        for (const mode of ['dark', 'light']) {
+          const t = T.resolve(s, mode);
+          eq(t.accent, accent);
+          eq(t.scheme, mode);
+          eq(T.audit(t).map((f) => f.label), [], `${base} ${accent} ${mode}`);
+        }
+      }
+      // With tint on, the grays lean toward the accent's hue.
+      const t = T.resolve({ themeId: 'custom', customTheme: { ...T.emptyCustom('graphite'), accent: '#2a9d8f' } }, 'dark');
+      const h = T.color.oklchOf(t.surface).h;
+      ok(Math.abs(h - T.color.oklchOf('#2a9d8f').h) < 25, `surface hue ${h}`);
+    });
+    await test('custom theme: picked colors are kept exactly; derived text is corrected; low contrast is reported', () => {
+      const ct = { ...T.emptyCustom('gesso'), accent: '#4f7cff', dark: { bg: '#101820', surface: '#18222c', text: '#d8e0e8' } };
+      const t = T.resolve({ themeId: 'custom', customTheme: ct }, 'dark');
+      eq([t.bg, t.surface, t.text], ['#101820', '#18222c', '#d8e0e8']);
+      eq(T.audit(t).map((f) => f.label), [], 'secondary text corrected');
+      const bad = T.resolve({ themeId: 'custom', customTheme: { ...ct, dark: { bg: '#202020', text: '#555555' } } }, 'dark');
+      eq(bad.text, '#555555', 'kept as picked');
+      ok(T.audit(bad).some((f) => f.fg === 'text' && f.ratio < 4.5), 'reported');
+      // A light background in the "dark" slot makes that variant light.
+      eq(T.resolve({ themeId: 'custom', customTheme: { ...ct, dark: { bg: '#f4efe6' } } }, 'dark').scheme, 'light');
+    });
+    await test('theme file: serialize → parse round-trips; per-course colors stay out', () => {
+      const ct = { ...T.emptyCustom('paper'), name: 'Night  Owl\n', accent: '#2a9d8f', dark: { bg: '#101820' }, light: { text: '#202020' }, courses: { c9z: '#ff0000' } };
+      const text = T.serialize(ct, null);
+      ok(!/c9z|ff0000/.test(text), 'no course ids or course colors in the file');
+      const r = T.parseFile(text);
+      ok(r.ok, JSON.stringify(r.errors));
+      eq([r.theme.name, r.theme.base, r.theme.accent, r.theme.dark, r.theme.light, r.image], ['Night Owl', 'paper', '#2a9d8f', { bg: '#101820' }, { text: '#202020' }, null]);
+      eq(T.fileName('Night Owl!'), 'night-owl.gesso-theme.json');
+    });
+    await test('theme file: rejects unknown keys, bad colors, URLs, SVG, script and oversized files', () => {
+      const base = { kind: 'gesso-theme', version: 1, name: 'x' };
+      const bad = (o, re) => {
+        const r = T.parseFile(typeof o === 'string' ? o : JSON.stringify(o));
+        ok(!r.ok, `accepted ${JSON.stringify(o).slice(0, 80)}`);
+        ok(re.test(r.errors.join(' ')), r.errors.join(' '));
+      };
+      bad('not json', /valid JSON/);
+      bad([], /isn’t a Gesso theme/);
+      bad({ ...base, kind: 'other' }, /isn’t a Gesso theme/);
+      bad({ ...base, version: 2 }, /version/);
+      bad({ ...base, css: 'body{}' }, /Unknown key "css"/);
+      bad({ ...base, dark: { bg: '#101820', onload: 'x' } }, /Unknown key "dark.onload"/);
+      bad({ ...base, accent: 'red' }, /accent/);
+      bad({ ...base, accent: 'url(https://example.com/x)' }, /accent/);
+      bad({ ...base, dark: { bg: 'javascript:alert(1)' } }, /dark.bg/);
+      bad({ ...base, base: 'neon' }, /base/);
+      bad({ ...base, image: { data: 'https://example.com/a.jpg' } }, /Web addresses/);
+      bad({ ...base, image: { data: 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=' } }, /PNG, JPEG or WebP/);
+      bad({ ...base, image: { data: 'data:image/png;base64,AAAA', blur: 99 } }, /blur/);
+      bad({ ...base, image: { data: 'data:image/png;base64,AAAA', src: 'x' } }, /image.src/);
+      bad({ ...base, name: 5 }, /name/);
+      bad(JSON.stringify({ ...base, name: 'x'.repeat(T.MAX_FILE_BYTES) }), /larger than/);
+      const big = 'A'.repeat(Math.ceil(T.MAX_IMAGE_BYTES / 3) * 4 + 4);
+      bad({ ...base, image: { data: `data:image/png;base64,${big}` } }, /image is larger/);
+    });
+    await test('theme file: an embedded image is decoded and re-encoded, then shown', async () => {
+      const c = document.createElement('canvas'); c.width = 64; c.height = 40;
+      const x = c.getContext('2d'); x.fillStyle = '#ffffff'; x.fillRect(0, 0, 64, 40); x.fillStyle = '#000000'; x.fillRect(0, 20, 64, 20);
+      const file = JSON.stringify({ kind: 'gesso-theme', version: 1, name: 'Stripes', base: 'graphite', image: { data: c.toDataURL('image/png'), blur: 4, dim: 10 } });
+      const r = await Gesso.themeEditor.importText(file, Gesso.store.get().settings, { confirm: false });
+      ok(r.ok, JSON.stringify(r));
+      const s = await Gesso.settings.load();
+      eq([s.themeId, s.customTheme.name, s.customTheme.image.blur, s.customTheme.image.samples.length], ['custom', 'Stripes', 4, 160]);
+      const rec = (await browser.storage.local.get(Gesso.appearance.IMAGE_KEY))[Gesso.appearance.IMAGE_KEY];
+      ok(rec.id === s.customTheme.image.id && /^data:image\/jpeg;base64,/.test(rec.data) && /^data:image\/jpeg;base64,/.test(rec.thumb), 'stored as JPEG');
+      // Black and white halves: the dim must be raised for text to read over both.
+      const d = Gesso.appearance.imageDim(s);
+      ok(d.required > 0.5 && d.dim === d.required, JSON.stringify(d));
+      const broken = JSON.stringify({ kind: 'gesso-theme', version: 1, name: 'Broken', image: { data: 'data:image/png;base64,AAAAAAAA' } });
+      const r2 = await Gesso.themeEditor.importText(broken, s, { confirm: false });
+      ok(!r2.ok && /couldn’t be read/.test(r2.errors.join(' ')), 'undecodable image rejected');
+      document.getElementById('host')?.shadowRoot?.querySelectorAll?.('dialog[open]').forEach((dl) => dl.close());
+      await Gesso.settings.reset();
+    });
+    await test('requiredDim: none for a calm image, more for a busy one', () => {
+      const t = T.resolve({ themeId: 'gesso' }, 'dark');
+      eq(T.requiredDim([[11, 13, 18], [20, 23, 30]], t), 0);
+      ok(T.requiredDim([[255, 255, 255]], t) >= 0.8, 'white behind dark-theme text');
+      eq(T.requiredDim([], t), 0);
+    });
+    await test('course colors: the theme palette recolors courses and keeps Canvas colors aside', () => {
+      const courses = [{ id: 'a', color: '#123456', position: 2 }, { id: 'b', color: '#654321', position: 1 }];
+      const state = { settings: { themeId: 'harbor', theme: 'dark', courseColors: 'theme' }, data: { courses } };
+      const v = Gesso.appearance.view(state);
+      const t = T.resolve(state.settings);
+      const byId = Object.fromEntries(v.data.courses.map((c) => [c.id, c]));
+      eq([byId.b.color, byId.a.color], [t['chart-1'], t['chart-2']], 'dashboard order');
+      eq(byId.a.canvasColor, '#123456');
+      ok(Gesso.appearance.view(state).data === v.data, 'identity-stable for memos');
+      const canvas = { ...state, settings: { ...state.settings, courseColors: 'canvas' } };
+      ok(Gesso.appearance.view(canvas) === canvas, 'Canvas colors: state untouched');
+      const custom = { settings: { themeId: 'custom', theme: 'dark', customTheme: { ...T.emptyCustom(), courseColors: 'canvas', courses: { a: '#00ff00' } } }, data: { courses } };
+      eq(Gesso.appearance.view(custom).data.courses.map((c) => c.color), ['#00ff00', '#654321'], 'per-course override only');
+    });
+    await test('paint mirror: round-trips tokens and refuses anything but colors', () => {
+      const t = T.resolve({ themeId: 'dusk' }, 'light');
+      const back = T.readPaintRecord(T.paintRecord(t));
+      eq([back.scheme, back.bg, back.accent, back['shadow']], ['light', t.bg, t.accent, t.shadow]);
+      eq(T.readPaintRecord(JSON.stringify({ v: 1, s: 'dark', t: { bg: 'url(https://x)' } })), null);
+      eq(T.readPaintRecord('{'), null);
+    });
+  }
+
   // ---- report --------------------------------------------------------------
   const failed = results.filter((r) => !r.ok);
   window.__testResults = { passed: results.length - failed.length, failed: failed.length, failures: failed };

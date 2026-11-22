@@ -22,6 +22,8 @@ analytics, no remote code and no dependencies.
 | ![Grades](docs/screenshots/grades.png) | ![Course grades](docs/screenshots/course-grades.png) |
 | **Light theme** | **Toolbar popup** |
 | ![Dashboard, light theme](docs/screenshots/dashboard-light.png) | ![Toolbar popup](docs/screenshots/popup.png) |
+| **Themes: six built-in, plus your own** | **The Paper theme, with its course palette** |
+| ![Settings, Appearance: the theme gallery](docs/screenshots/themes.png) | ![Dashboard in the Paper theme, light](docs/screenshots/dashboard-paper.png) |
 
 Screenshots use the built-in preview's made-up data.
 
@@ -30,7 +32,7 @@ Screenshots use the built-in preview's made-up data.
 - [Features](#features)
 - [Requirements](#requirements)
 - [Build and install from source](#build-and-install-from-source)
-- [Using it](#using-it)
+- [Using it](#using-it) (including [Themes](#themes))
 - [Privacy and permissions](#privacy-and-permissions)
 - [Known limitations](#known-limitations)
 - [How grades are calculated](#how-grades-are-calculated)
@@ -65,6 +67,12 @@ Screenshots use the built-in preview's made-up data.
     explained.
   - What-if scores, "what do I need" for each letter, trends, and a GPA
     estimate on a scale you choose.
+- **Themes:** six built-in themes (Gesso, Linen, Harbor, Paper, Dusk,
+  Graphite), each with a dark and a light version, plus your own custom
+  theme. Pick one color and the rest is derived from it, or set the
+  background, surfaces and text yourself. Optionally add a background image
+  from your Mac. Themes can be shared as small `.json` files. They apply to
+  Gesso and the toolbar popup. See [Themes](#themes).
 - **Mark done, snooze and to-dos:** stored in Canvas itself (planner
   overrides and notes), so they also show in Canvas's planner and the mobile
   app. Every write is read back from Canvas before it counts as saved.
@@ -80,7 +88,7 @@ Screenshots use the built-in preview's made-up data.
   - A floating **Gesso** button opens the page you're on in Gesso.
 - **Accessibility:**
   - fully keyboard-navigable, with visible focus rings
-  - WCAG AA contrast in both themes
+  - WCAG AA contrast in every built-in theme, dark and light
   - respects "Reduce motion"
   - checked automatically on every view (see [Development](#development))
 - **Experimental, off by default:** submitting text, website URLs and files
@@ -179,7 +187,8 @@ ship automatically, but content scripts must also be listed in
 - **To-dos:** **Add to-do** on the dashboard or the calendar. They're Canvas
   planner notes, so they sync with Canvas and its apps.
 - **Settings** (sidebar, or `g s`):
-  - Appearance: theme, accent, density
+  - Appearance: theme, mode, accent, course colors, density, and the
+    custom theme editor (see [Themes](#themes))
   - Dashboard: default view, the "due soon" window
   - Grades: the GPA scale
   - Courses: courses hidden from Gesso
@@ -195,6 +204,47 @@ ship automatically, but content scripts must also be listed in
     reaches buttons too.
   - Gesso's own shortcuts (⌘K, `g` + letter, `?`) work regardless.
 
+### Themes
+
+**Settings → Appearance** shows a live preview of each theme. Click one to
+switch, and use **Mode** (or the sun and moon in the top bar) for its dark or
+light version.
+
+- **Built-in themes:** Gesso (cool graphite, periwinkle; the original),
+  Linen (warm stone, clay), Harbor (deep navy, sky blue), Paper (paper
+  whites and ink, teal), Dusk (muted plum, orchid) and Graphite (neutral
+  grays, monochrome). Every one passes the automated contrast audit (WCAG
+  AA) in both modes.
+- **Accent:** the first swatch is the theme's own accent. Any other color
+  replaces it, and links, focus rings and button text are adjusted to stay
+  readable.
+- **Course colors:** **Canvas** uses the colors set in Canvas. **Theme
+  palette** gives courses the theme's own eight colors, in dashboard order.
+  This only changes Gesso, never Canvas.
+- **Custom theme:** **Build from the current theme** opens the editor.
+  - Pick an **accent** and everything else follows: the grays take a faint
+    tint of its hue, and the course palette is built around it.
+  - Optionally set the **background**, **surface** and **text** for each
+    mode. Secondary and muted text are mixed from your text color and kept
+    readable. **Use auto** goes back to the derived color.
+  - Course colors can be set per course. They stay on this Mac.
+  - The editor checks contrast as you go and warns when any text drops
+    below 4.5:1.
+  - **Background image:** a PNG, JPEG or WebP from your Mac, with blur and
+    dim. If the dim you choose would leave text below 4.5:1 over any part of
+    the image, Gesso dims it more, and says so. The image is stored on this
+    Mac (downscaled, re-encoded as JPEG), never loaded from the web.
+  - **Reset to default** clears the colors, course colors and image.
+- **Import and export:** **Export** saves the custom theme as a
+  `.gesso-theme.json` file; **Import theme…** loads one, replacing your
+  custom theme after asking. Files are checked strictly: only known keys,
+  colors like `#14171e`, a size limit (8 MB), and at most one embedded PNG,
+  JPEG or WebP image (no web addresses, no SVG). Anything else rejects the
+  whole file. Per-course colors aren't exported, since they name your
+  courses.
+- Canvas's own pages keep their dark mode as before: it follows the mode
+  (dark or light), not the theme's colors.
+
 ## Privacy and permissions
 
 - **Network:** the only requests go from your Canvas tab to your Canvas
@@ -202,14 +252,15 @@ ship automatically, but content scripts must also be listed in
   make no network requests. There are no external servers, analytics or
   remote code.
 - **Stored on your Mac** (Safari's extension storage):
-  - your settings
+  - your settings, including your custom theme
+  - your custom theme's background image, if you added one
   - a cache of your Canvas data, so Gesso paints instantly
   - a small summary for the toolbar popup
 
   **Settings → Data → Clear and reload** removes the cache. Removing the
-  extension removes all of it. A few small mirrors of your theme and mode
-  are also kept in your Canvas site's local storage, so the right page can
-  be shown before Canvas starts drawing.
+  extension removes all of it. A few small mirrors of your mode and theme
+  colors are also kept in your Canvas site's local storage, so the right page
+  and colors can be shown before Canvas starts drawing.
 
 **Permissions:**
 
@@ -295,6 +346,8 @@ decimals, so float error can't move a score across a boundary.
   parameters:
   - `?route=/courses/101/files` opens a view
   - `?theme=light`, `?latency=800`, `?fail=auth`
+  - `?themeId=linen` starts with a built-in theme, `?courseColors=theme`
+    with the theme's course colors
   - `?scale=20` gives 20× the assignments
   - `?noanim=1` for headless screenshots
 - **Other previews:**
@@ -306,12 +359,16 @@ decimals, so float error can't move a score across a boundary.
   - unit tests (`dev/tests/tests.js`)
   - interaction checks (`dev/tests/ui-checks.js`)
   - never-blank checks (`dev/tests/health-checks.js`)
-  - an accessibility audit of every view in both themes
+  - an accessibility audit of every view, the main dialogs and the custom
+    theme editor, for every built-in theme in dark and light
     (`dev/tests/a11y-checks.js`)
   - the popup
   - dark-mode checks with pixel probes that confirm photos keep their colors
 
   Any failure fails the script.
+- **Theme screenshots:** `dev/tools/theme-shots.sh [out-dir]` takes every
+  built-in theme, dark and light, on every main view (plus the popup, a dialog
+  and ⌘K), and makes a contact sheet per theme and one overview.
 - **Performance:** `dev/tools/perf.sh [scale]` prints the median and max
   render time per view. Run `test.sh` once first; it builds the headless
   runner.
@@ -326,7 +383,7 @@ extension/                   The web extension (Xcode references this folder)
   manifest.json              Manifest V3; the Canvas domain is set here
   icons/
   src/
-    shared/                  Namespace, config, settings, time, color
+    shared/                  Namespace, config, settings, time, color, themes
     background/              Service worker: the toolbar badge (no network)
     popup/                   Toolbar popup (reads storage only)
     content/

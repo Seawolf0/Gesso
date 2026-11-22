@@ -4,7 +4,8 @@
  * Stateless: every control writes settings right away; the store
  * re-renders, and other tabs pick changes up through storage events.
  *
- *   Appearance      theme, accent, density
+ *   Appearance      theme gallery, mode, accent, course colors, density (ui/theme-editor.js)
+ *   Custom theme    the custom theme editor, when the custom theme is selected
  *   Dashboard       default view, "due soon" window
  *   Grades          GPA scale (the Grades page's dialog)
  *   Courses         courses hidden from Gesso
@@ -22,11 +23,6 @@
   const DISCLAIMER = 'Gesso is an unofficial project and is not affiliated with or endorsed by Instructure. Canvas is a trademark of Instructure, Inc.';
   const version = (() => { try { return String(Gesso.browser.runtime.getManifest().version || ''); } catch { return ''; } })();
 
-  const ACCENTS = /** @type {[string, string][]} */ ([
-    ['#8b9cff', 'Periwinkle (default)'], ['#4f7cff', 'Blue'], ['#58b8d1', 'Cyan'], ['#4fb3a9', 'Teal'], ['#6cc17e', 'Green'],
-    ['#d6a94f', 'Gold'], ['#e0876a', 'Coral'], ['#e07a9a', 'Pink'], ['#a77bf3', 'Violet'],
-  ]);
-
   const update = (/** @type {any} */ patch) => Gesso.settings.update(patch);
 
   function check(/** @type {string} */ fkey, /** @type {boolean} */ checked, /** @type {(on: boolean) => void} */ onChange, /** @type {boolean} */ disabled = false) {
@@ -43,30 +39,6 @@
         h(id ? 'label' : 'span', { class: 'set-line__label', for: id || undefined }, label),
         hint && h('span', { class: 'set-hint' }, hint)),
       h('div', { class: 'set-line__control' }, control));
-
-  /** Segmented control from radio buttons (arrow keys move between options natively). */
-  function segmented(/** @type {string} */ name, /** @type {string} */ label, /** @type {string} */ value, /** @type {[string, string][]} */ options, /** @type {(v: string) => void} */ onChange) {
-    return h('div', { class: 'seg', role: 'radiogroup', 'aria-label': label },
-      options.map(([v, l]) => {
-        const input = /** @type {HTMLInputElement} */ (h('input', { type: 'radio', name, value: v, class: 'seg__input', 'data-fkey': `${name}:${v}` }));
-        input.checked = v === value;
-        input.addEventListener('change', () => input.checked && onChange(v));
-        return h('label', { class: 'seg__opt' }, input, h('span', null, l));
-      }));
-  }
-
-  function accentPicker(/** @type {string} */ current) {
-    const custom = /** @type {HTMLInputElement} */ (h('input', { type: 'color', class: 'swatch-custom', 'aria-label': 'Custom accent color', 'data-fkey': 'set-accent-custom' }));
-    custom.value = current;
-    custom.addEventListener('change', () => update({ accent: custom.value }));
-    const known = ACCENTS.some(([hex]) => hex.toLowerCase() === current.toLowerCase());
-    return h('div', { class: 'swatches', role: 'radiogroup', 'aria-label': 'Accent color' },
-      ACCENTS.map(([hex, name]) => h('button', {
-        type: 'button', class: 'swatch', role: 'radio', 'aria-checked': String(hex.toLowerCase() === current.toLowerCase()), 'aria-label': name, title: name,
-        style: { '--c': hex }, 'data-fkey': `set-accent:${hex}`, onClick: () => update({ accent: hex }),
-      })),
-      h('span', { class: ['swatch-custom-wrap', !known && 'swatch-custom-wrap--on'], title: 'Custom color' }, custom));
-  }
 
   function nativeDarkPanel(/** @type {any} */ s) {
     const off = new Set(s.nativeDarkOff || []);
@@ -111,8 +83,8 @@
     const dlg = Gesso.overlays.dialog({
       title: 'Reset settings?', class: 'dialog--narrow',
       body: h('div', { class: 'form' },
-        h('p', null, 'Theme, accent, density, default view, the due-soon window, the GPA scale, the Gesso button and Canvas-page dark mode go back to their defaults.'),
-        h('p', { class: 'muted' }, 'Kept: hidden courses, GPA credits and exclusions, and everything saved in Canvas (nicknames, colors, to-dos, done and snoozed items).'),
+        h('p', null, 'Theme (back to Gesso, dark), accent, course colors, density, default view, the due-soon window, the GPA scale, the Gesso button and Canvas-page dark mode go back to their defaults.'),
+        h('p', { class: 'muted' }, 'Kept: your custom theme (pick it again in Appearance), hidden courses, GPA credits and exclusions, and everything saved in Canvas (nicknames, colors, to-dos, done and snoozed items).'),
         h('div', { class: 'form__actions' },
           h('span', { style: { flex: '1' } }),
           h('button', { class: 'btn', type: 'button', onClick: () => dlg.close() }, 'Cancel'),
@@ -128,12 +100,8 @@
     const isMac = /Mac/.test(navigator.platform || navigator.userAgent);
 
     return h('div', { class: 'settings-page fade-in' },
-      ui.panel({ title: 'Appearance', icon: 'sparkles', id: 'set-appearance' },
-        row('Theme', 'Also sets Canvas pages when their dark mode is "Match".',
-          segmented('set-theme', 'Theme', s.theme, [['dark', 'Dark'], ['light', 'Light']], (v) => update({ theme: v }))),
-        row('Accent color', 'Buttons, links, highlights and the selected item.', accentPicker(s.accent || Gesso.settings.DEFAULTS.accent)),
-        row('Density', 'Compact fits more rows on screen.',
-          segmented('set-density', 'Density', s.density, [['comfortable', 'Comfortable'], ['compact', 'Compact']], (v) => update({ density: v })))),
+      Gesso.themeEditor.appearancePanel(state),
+      Gesso.themeEditor.customPanel(state),
 
       ui.panel({ title: 'Dashboard', icon: 'home', id: 'set-dashboard' },
         row('Open to', 'What Canvas shows when you open it from the toolbar or the bare address. The Dashboard link always goes to the dashboard.',

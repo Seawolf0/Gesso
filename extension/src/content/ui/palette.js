@@ -105,7 +105,7 @@
     const opener = /** @type {HTMLElement|null} */ (shadow.activeElement);
     const openerKey = opener?.getAttribute('data-fkey');
 
-    let index = Gesso.search.buildIndex(store.get());
+    let index = Gesso.search.buildIndex(Gesso.appearance.view(store.get()));
     /** @type {any[]} */
     let results = [];
     let active = 0;
@@ -170,7 +170,7 @@
     // Fresh data (a sync, warmed modules) → rebuild the index, keep the query.
     const unsubscribe = store.subscribe(() => {
       if (!open) return;
-      index = Gesso.search.buildIndex(store.get(), extras);
+      index = Gesso.search.buildIndex(Gesso.appearance.view(store.get()), extras);
       const keep = active;
       render();
       setActive(Math.min(keep, results.length - 1), false);
@@ -180,7 +180,7 @@
     gatherExtras().then((x) => {
       extras = x;
       if (!open) return;
-      index = Gesso.search.buildIndex(store.get(), extras);
+      index = Gesso.search.buildIndex(Gesso.appearance.view(store.get()), extras);
       render();
       warmModules(x.modules);
     });

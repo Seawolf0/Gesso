@@ -40,17 +40,27 @@ H_OUT="${TMPDIR:-/tmp}/gesso-dev/health-checks.txt"
 "$BIN" "dev/preview/index.html?health=1&noanim=1&latency=0" --timeout 180 --wait "window.__healthChecks" --eval "JSON.stringify(window.__healthChecks)" > "$H_OUT" 2>&1 || true
 grep -E 'FAIL|\[eval\]|uncaught|unhandled|\[timeout\]' "$H_OUT"
 grep -q '"failed":0' "$H_OUT" || fail=1
-# Accessibility audit: every route + main dialogs, dark and light.
+# Accessibility audit: every route + main dialogs, for every built-in
+# theme in dark and light (four runs at a time).
 echo "› Accessibility audit"
-for t in dark light; do
-  A11Y_OUT="${TMPDIR:-/tmp}/gesso-dev/a11y-$t.txt"
-  "$BIN" "dev/preview/index.html?a11y=1&noanim=1&latency=0&theme=$t" --timeout 120 --wait "window.__a11y" --eval "window.__a11y.count" > "$A11Y_OUT" 2>&1 || true
-  sed -n 's/^\[console\] error: \(A11Y .*\)/  \1/p' "$A11Y_OUT"
-  if grep -q '^\[eval\] 0$' "$A11Y_OUT"; then echo "  [$t] no findings"; else echo "  [$t] FAIL"; fail=1; fi
+THEME_IDS="$(sed -n "s/^ *id: '\([a-z]*\)', name: .*/\1/p" "$ROOT/extension/src/shared/themes.js")"
+for th in $THEME_IDS; do
+  for t in dark light; do
+    "$BIN" "dev/preview/index.html?a11y=1&noanim=1&latency=0&theme=$t&themeId=$th" --timeout 150 --wait "window.__a11y" --eval "window.__a11y.count" > "${TMPDIR:-/tmp}/gesso-dev/a11y-$th-$t.txt" 2>&1 &
+    while [ "$(jobs -r | wc -l)" -ge 4 ]; do sleep 0.3; done
+  done
+done
+wait
+for th in $THEME_IDS; do
+  for t in dark light; do
+    A11Y_OUT="${TMPDIR:-/tmp}/gesso-dev/a11y-$th-$t.txt"
+    sed -n 's/^\[console\] error: \(A11Y .*\)/  \1/p' "$A11Y_OUT"
+    if grep -q '^\[eval\] 0$' "$A11Y_OUT"; then echo "  [$th $t] no findings"; else echo "  [$th $t] FAIL"; fail=1; fi
+  done
 done
 # Toolbar popup renders from a real summary (and with none).
 echo "› Popup"
-for st in full empty; do
+for st in full empty "full&themeId=paper&theme=light" "full&themeId=harbor"; do
   "$BIN" "dev/preview/popup.html?state=$st" --wait "window.__popupReady" --eval "document.getElementById('app').innerText.length > 40 && !/undefined|NaN/.test(document.getElementById('app').innerText)" 2>/dev/null | grep -qE '^\[eval\] (true|1)$' && echo "  ok [$st]" || { echo "  FAIL popup [$st]"; fail=1; }
 done
 # Native-page dark mode: launcher visible, fixed elements in place,

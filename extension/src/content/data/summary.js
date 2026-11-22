@@ -64,7 +64,8 @@
     started = true;
     const write = () => {
       if (stopped) return;
-      const s = Gesso.store.get();
+      // The popup shows the theme's course colors too.
+      const s = Gesso.appearance ? Gesso.appearance.view(Gesso.store.get()) : Gesso.store.get();
       if (!s.hydrated || s.data?.coursework == null) return;
       const summary = compute(s);
       // `at` changes every time; compare without it so idle re-renders don't write.

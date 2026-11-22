@@ -3,7 +3,8 @@
  * Toolbar popup. Reads two storage keys and renders; no network
  * (only the Canvas tab talks to Canvas):
  *   popup.summary  written by the Canvas tab after each sync (content/data/summary.js)
- *   settings       for theme + accent
+ *   settings       for the theme (shared/themes.js; loaded before this file)
+ *   theme.image    the custom theme's background image (its thumbnail), if any
  *
  * Links open in an existing Gesso tab when there is one (a Canvas tab at
  * "/"), otherwise in a new tab. Native Canvas tabs are never navigated away.
@@ -67,15 +68,50 @@
     return hr < 48 ? `${hr}h ago` : `${Math.round(hr / 24)}d ago`;
   }
 
-  /** Black or white text on a hex color. */
-  function readableOn(/** @type {string} */ hex) {
-    const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
-    if (!m) return '#0b0d12';
-    const n = parseInt(m[1], 16);
-    const lin = (/** @type {number} */ c) => { const s = c / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; };
-    const L = 0.2126 * lin(n >> 16) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
-    // Whichever has the higher WCAG contrast ratio (near-black ≈ L 0.005).
-    return (L + 0.05) / 0.055 >= 1.05 / (L + 0.05) ? '#0b0d12' : '#ffffff';
+  // ---- theme ---------------------------------------------------------------
+
+  const T = /** @type {any} */ (globalThis).Gesso.themes;
+  /** The last theme applied, kept in the popup's own localStorage so the next open paints it at once. */
+  const PAINT_KEY = 'gesso.popupPaint';
+  const THUMB = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/;
+
+  /** Tokens → custom properties. The popup's page color is the app's sidebar tone (--bg-elev). */
+  function paint(/** @type {any} */ t) {
+    const root = document.documentElement;
+    root.setAttribute('data-theme', t.scheme);
+    root.style.setProperty('color-scheme', t.scheme);
+    for (const k of ['surface', 'surface-2', 'surface-3', 'border', 'border-strong', 'text', 'text-2', 'text-3',
+      'danger', 'danger-soft', 'warn', 'warn-soft', 'accent', 'accent-fg', 'accent-text', 'focus']) root.style.setProperty(`--${k}`, t[k]);
+    root.style.setProperty('--bg', t['bg-elev']);
+  }
+  try { const cached = T.readPaintRecord(localStorage.getItem(PAINT_KEY)); if (cached) paint(cached); } catch { /* no cache yet */ }
+
+  /** Settings as the app reads them (Gesso.settings.normalize, minus what the popup doesn't use). */
+  function themeSettings(/** @type {any} */ raw) {
+    const s = { ...(raw || {}) };
+    if (raw && !('themeId' in raw) && String(s.accent).toLowerCase() === '#8b9cff') s.accent = '';
+    if (s.themeId === 'custom' && !T.validCustom(s.customTheme ?? null)) s.themeId = 'gesso';
+    return s;
+  }
+
+  /** @param {any} settings @param {any} image  storage `theme.image` */
+  function applyTheme(settings, image) {
+    const s = themeSettings(settings);
+    const t = T.resolve(s);
+    paint(t);
+    try { localStorage.setItem(PAINT_KEY, T.paintRecord(t)); } catch { /* fine */ }
+    // The custom theme's image, dimmed exactly as in the app.
+    const img = T.activeId(s) === 'custom' ? s.customTheme?.image : null;
+    const thumb = img && image && image.id === img.id ? image.thumb : null;
+    if (thumb && THUMB.test(thumb)) {
+      const dim = Math.max((img.dim || 0) / 100, T.requiredDim(img.samples, t));
+      const veil = T.color.rgba(t['bg-elev'], Math.max(dim, 0.3));
+      document.body.style.setProperty('background', `linear-gradient(${veil}, ${veil}), url("${thumb}") center / cover no-repeat`);
+      document.body.style.setProperty('background-color', t['bg-elev']);
+    } else {
+      document.body.style.removeProperty('background');
+      document.body.style.removeProperty('background-color');
+    }
   }
 
   // ---- navigation -----------------------------------------------------------
@@ -103,14 +139,10 @@
 
   // ---- render ---------------------------------------------------------------
 
-  /** @param {any} summary @param {any} settings @param {string} origin */
-  function render(summary, settings, origin) {
+  /** @param {any} summary @param {any} settings @param {string} origin @param {any} [image] */
+  function render(summary, settings, origin, image) {
     const now = new Date();
-    const theme = settings?.theme === 'light' ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', theme);
-    const accent = /^#[0-9a-f]{6}$/i.test(settings?.accent || '') ? settings.accent : '#8b9cff';
-    document.documentElement.style.setProperty('--accent', accent);
-    document.documentElement.style.setProperty('--accent-fg', readableOn(accent));
+    applyTheme(settings, image);
 
     const home = `${origin}/`;
     const items = (summary?.items || []).filter((/** @type {any} */ i) => Date.parse(i.dueAt) >= now.getTime());
@@ -173,13 +205,14 @@
     const pattern = (api.runtime.getManifest().host_permissions || [])[0] || 'https://umd.instructure.com/*';
     const origin = pattern.replace(/\/\*$/, '');
     const got = await api.storage.local.get(['popup.summary', 'settings']);
-    render(got['popup.summary'] || null, got.settings || null, got['popup.summary']?.origin || origin);
+    const image = got.settings?.themeId === 'custom' && got.settings?.customTheme?.image ? (await api.storage.local.get('theme.image'))['theme.image'] : null;
+    render(got['popup.summary'] || null, got.settings || null, got['popup.summary']?.origin || origin, image);
   }
 
   load();
   // A sync finishing while the popup is open updates it in place.
   api.storage.onChanged.addListener((/** @type {any} */ changes, /** @type {string} */ area) => {
-    if (area === 'local' && (changes['popup.summary'] || changes.settings)) load();
+    if (area === 'local' && (changes['popup.summary'] || changes.settings || changes['theme.image'])) load();
   });
   // Exposed for the dev preview.
   /** @type {any} */ (window).__popup = { render, countdown, whenText };

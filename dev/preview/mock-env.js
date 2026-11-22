@@ -8,7 +8,12 @@
   // ---- browser.* -----------------------------------------------------------
   const store = {};
   const listeners = [];
-  if (params.get('theme')) store.settings = { theme: params.get('theme') };
+  // ?theme=dark|light (mode), ?themeId=<preset id>, ?courseColors=theme: start with these settings.
+  {
+    const preset = {};
+    for (const k of ['theme', 'themeId', 'courseColors']) if (params.get(k)) preset[k] = params.get(k);
+    if (Object.keys(preset).length) store.settings = preset;
+  }
   const storage = {
     async get(keys) {
       const list = keys == null ? Object.keys(store) : Array.isArray(keys) ? keys : [keys];

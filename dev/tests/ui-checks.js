@@ -25,6 +25,7 @@
     await sleep(30);
   };
   const ok = (v, msg) => { if (!v) throw new Error(msg || 'expected truthy'); };
+  const eq = (a, b, msg = '') => { if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(`${msg} expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`); };
   /** Key press from inside the shadow root (retargeted like a real one). */
   const press = (key, opts = {}, target = $('main')) => target.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, composed: true, cancelable: true, ...opts }));
   const go = async (path) => { location.hash = path; await sleep(150); };
@@ -140,6 +141,45 @@
     await waitFor(() => Gesso.store.get().settings.defaultView === 'calendar' && Gesso.store.get().settings.dueSoonDays === 14, 1000, 'stored');
     await Gesso.settings.reset();
     await waitFor(() => host.getAttribute('data-density') === 'comfortable' && Gesso.store.get().settings.dueSoonDays === 7, 1000, 'reset');
+  });
+
+  await check('settings: theme gallery switches themes; the custom editor previews live and saves on change', async () => {
+    await go('/settings');
+    const card = await waitFor(() => $('[data-fkey="theme:harbor"]'), 2000, 'gallery');
+    ok($('.tgallery').getAttribute('role') === 'radiogroup', 'radiogroup');
+    card.click();
+    const harbor = Gesso.themes.resolve({ themeId: 'harbor' }, 'dark');
+    await waitFor(() => host.style.getPropertyValue('--bg') === harbor.bg && host.getAttribute('data-theme-id') === 'harbor', 1000, 'harbor applied');
+    ok($('.tcard--on [data-fkey="theme:harbor"]'), 'selected state');
+    ok(Gesso.themes.readPaintRecord(localStorage.getItem('gesso.paint'))?.bg === harbor.bg, 'paint mirror written');
+    // Course colors from the theme palette, then back.
+    $('[data-fkey="set-course-colors:theme"]').click();
+    await waitFor(() => $('.pstrip'), 1000, 'palette strip');
+    $('[data-fkey="set-course-colors:canvas"]').click();
+    // Create a custom theme from the current one.
+    $('[data-fkey="theme:custom"]').click();
+    await waitFor(() => $('#set-custom'), 1500, 'custom editor');
+    eq(Gesso.store.get().settings.customTheme.base, 'harbor');
+    // Live preview: moving the accent changes the page but writes nothing.
+    const well = $('[data-fkey="ced:accent"]');
+    well.value = '#e0876a'; well.dispatchEvent(new Event('input'));
+    ok(host.style.getPropertyValue('--accent') === '#e0876a', 'previewed');
+    ok(Gesso.store.get().settings.customTheme.accent === '', 'not saved yet');
+    well.dispatchEvent(new Event('change'));
+    await waitFor(() => Gesso.store.get().settings.customTheme.accent === '#e0876a', 1000, 'saved on change');
+    // A hand-picked low-contrast text color is reported.
+    const text = $('[data-fkey="ced:text"]');
+    text.value = '#3a3a3a'; text.dispatchEvent(new Event('change'));
+    await waitFor(() => $('.ced-check--warn'), 1000, 'contrast warning');
+    ok(/Text on/.test($('.ced-check--warn').textContent), 'names the pair');
+    $('[data-fkey="ced-auto:text"]').click();
+    await waitFor(() => $('.ced-check--ok'), 1000, 'back to readable');
+    // Export produces a valid theme file.
+    $('[data-fkey="ced-export"]').click();
+    await waitFor(() => Gesso.diagnostics?.lastThemeExport, 1000, 'export');
+    ok(Gesso.themes.parseFile(Gesso.diagnostics.lastThemeExport.text).ok, 'exported file parses');
+    await Gesso.settings.reset();
+    await waitFor(() => host.getAttribute('data-theme-id') === 'gesso', 1000, 'reset to Gesso');
   });
 
   await check('settings: launcher toggle and GPA scale dialog', async () => {

@@ -62,7 +62,10 @@
   }
 
   /** Open the settings dialog for one course. */
-  function open(/** @type {any} */ course) {
+  function open(/** @type {any} */ shown) {
+    // Views may pass a course recolored by the theme; this dialog edits Canvas's own color.
+    const course = (store.get().data.courses || []).find((/** @type {any} */ c) => c.id === shown.id) || shown;
+    const themed = !!shown.canvasColor;
     const hidden = (store.get().settings.hiddenCourses || []).includes(course.id);
     const hasNickname = course.originalName && course.name !== course.originalName;
     let color = course.color;
@@ -102,7 +105,9 @@
       h('div', { class: 'field' },
         h('span', { class: 'field__label' }, 'Color'),
         h('div', { class: 'color-row' }, preview, swatches),
-        h('p', { class: 'field__hint' }, 'Saved to Canvas; also used for the generated card gradient.')),
+        h('p', { class: 'field__hint' }, themed
+          ? 'Saved to Canvas. Your theme shows courses in its own colors; change that in Settings → Appearance.'
+          : 'Saved to Canvas; also used for the generated card gradient.')),
       h('label', { class: 'check' }, hide,
         h('span', null, h('span', { class: 'check__label' }, 'Hide this course'),
           h('span', { class: 'field__hint' }, 'Removes it from the dashboard, sidebar, and assignment center. Only affects Gesso.'))),

@@ -20,28 +20,9 @@
     }
   }
 
-  /** Theme / density / accent → host attributes + custom properties. */
-  function applyAppearance(/** @type {HTMLElement} */ host, /** @type {any} */ settings) {
-    const { alpha, readableOn, rgbToHsl, parseHex } = Gesso.color;
-    host.setAttribute('data-theme', settings.theme === 'light' ? 'light' : 'dark');
-    host.setAttribute('data-density', settings.density === 'compact' ? 'compact' : 'comfortable');
-
-    const accent = parseHex(settings.accent) ? settings.accent : Gesso.settings.DEFAULTS.accent;
-    const { h: hue, s } = rgbToHsl(/** @type {any} */ (parseHex(accent)));
-    host.style.setProperty('--accent', accent);
-    host.style.setProperty('--accent-fg', readableOn(accent));
-    host.style.setProperty('--accent-soft', alpha(accent, settings.theme === 'light' ? 0.12 : 0.16));
-    // Accent used *as text* must stay readable on light surfaces.
-    host.style.setProperty('--accent-text', settings.theme === 'light' ? `hsl(${hue.toFixed(0)} ${Math.min(s, 70).toFixed(0)}% 42%)` : accent);
-    // Focus rings need 3:1 against the surface (WCAG 1.4.11). A light accent on
-    // white doesn't reach that, so the light theme rings in the darker accent-text.
-    host.style.setProperty('--focus', settings.theme === 'light' ? 'var(--accent-text)' : accent);
-
-    // Page background behind the shadow host (avoids a white flash on overscroll).
-    const bg = settings.theme === 'light' ? '#f3f4f7' : '#0b0d12';
-    document.documentElement.style.setProperty('background', bg);
-    document.documentElement.style.setProperty('color-scheme', settings.theme === 'light' ? 'light' : 'dark');
-    Gesso.settings.writeMirror('theme', settings.theme);
+  /** Theme, mode, density, accent → host attributes + custom properties (ui/appearance.js). */
+  function applyAppearance(/** @type {HTMLElement} */ host, /** @type {any} */ settings, /** @type {{ animate?: boolean }} */ opts = {}) {
+    Gesso.appearance.apply(host, settings, opts);
   }
 
   /**
@@ -128,7 +109,7 @@
     }
     Gesso.settings.writeModeMirror('gesso');
     store.set({ settings });
-    applyAppearance(host, settings);
+    applyAppearance(host, settings, { animate: false });
 
     const actions = {
       onRefresh: () => Gesso.sync.refresh({ force: true }),
@@ -241,7 +222,8 @@
         if (needsCoursework && s.data.coursework == null && !s.sync.error) return;
         resolveDeepLink();
       }
-      const state = store.get();
+      // Views see the theme's course colors (Canvas's own stay in canvasColor).
+      const state = Gesso.appearance.view(store.get());
       const navigated = lastRouteName !== route.path;
       // Scroll to top *before* rendering, so a view that scrolls to a
       // deep-linked item (announcement, assignment) isn't overridden.
