@@ -92,8 +92,11 @@ Screenshots use the built-in preview's made-up data.
   - WCAG AA contrast in every built-in theme, dark and light
   - respects "Reduce motion"
   - checked automatically on every view (see [Development](#development))
-- **Experimental, off by default:** submitting text, website URLs and files
-  from Gesso (see [Known limitations](#known-limitations)).
+- **Submit from Gesso** (off by default): submit file uploads to an
+  assignment without leaving Gesso. Gesso only says "Submitted" after
+  re-reading Canvas and finding the new attempt with exactly your files.
+  Text and website-URL submission is experimental (see
+  [Known limitations](#known-limitations)).
 
 ## Requirements
 
@@ -195,7 +198,8 @@ ship automatically, but content scripts must also be listed in
   - Grades: the GPA scale
   - Courses: courses hidden from Gesso
   - Canvas pages: the floating button, dark mode per page type
-  - Experimental
+  - Submitting: "Submit from Gesso" (file uploads)
+  - Experimental: text and website-URL submission
   - Data: clear the cache, reset settings
   - About
 - **Keyboard:**
@@ -298,21 +302,22 @@ settings Canvas's own pages and apps change:
 - course nicknames, colors, and dashboard order
 - marking announcements and discussions read
 - planner overrides (mark done) and planner notes (to-dos, snoozes)
-- **only if you turn on the experimental option and press Submit:**
-  text-entry, website-URL and file-upload submissions, with files uploaded
+- **only if you turn on "Submit from Gesso" (files) or the experimental
+  text/URL option, and press Submit:** the submission, with files uploaded
   through Canvas's normal upload into your submission files
 
 It never changes grades.
 
 ## Known limitations
 
-- **Submitting from Gesso is experimental and off by default** (Settings →
-  Experimental).
-  - It has not been verified with a real submission. Submit in Canvas for
-    anything that matters.
+- **Text and website-URL submission from Gesso is experimental** and off by
+  default (Settings → Experimental).
+  - It hasn't been verified with a real submission yet. Submit those in
+    Canvas for anything that matters. (File uploads, Settings → Submitting,
+    are verified.)
   - Gesso only reports "Submitted" after re-reading Canvas and finding the
-    new attempt with the right text, link or files.
-  - Media, annotations, quizzes and external tools always open Canvas.
+    new attempt with the right text or link.
+- Media, annotations, quizzes and external tools always open Canvas.
 - **Built and tested against one school's Canvas.** Other Canvas instances
   may use features or settings it hasn't met.
 - **macOS Safari only.** There's no iOS/iPadOS or other-browser build.

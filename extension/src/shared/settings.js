@@ -34,7 +34,8 @@
    * @property {string[]} nativeDarkOff       Page types kept light (see Gesso.nativeDark.PAGE_TYPES)
    * @property {boolean} darkPdfs             Also darken PDF / document previews (inverts images inside them too)
    * @property {boolean} darkEditor           Darken the rich content editor (off = it looks like the published page)
-   * @property {boolean} experimentalSubmit   Text/URL submission from Gesso. Off until a live submission is verified.
+   * @property {boolean} submitFiles          "Submit from Gesso": file-upload submissions. Off by default.
+   * @property {boolean} experimentalSubmit   Text/URL submission from Gesso: experimental, not yet verified with a real submission. Off by default.
    */
 
   /** @type {Settings} */
@@ -59,6 +60,7 @@
     nativeDarkOff: [],
     darkPdfs: false,
     darkEditor: true,
+    submitFiles: false,
     experimentalSubmit: false,
   });
 
@@ -93,6 +95,10 @@
       if (s.themeId === 'custom' && !s.customTheme) s.themeId = 'gesso';
     }
     if (s.courseColors !== 'theme') s.courseColors = 'canvas';
+    // Before 1.2.1 one experimental switch covered files, text and URL. Someone
+    // who had it on keeps file submission (now its own setting); it stays an opt-in.
+    if (stored && !('submitFiles' in stored) && stored.experimentalSubmit === true) s.submitFiles = true;
+    s.submitFiles = s.submitFiles === true;
     s.seasonal = s.seasonal === true;
     s.decorations = s.decorations !== false;
     return s;

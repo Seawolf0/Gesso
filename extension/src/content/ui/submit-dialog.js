@@ -1,9 +1,10 @@
 // @ts-check
 /**
  * "Submit" dialog: text, website URL and file uploads.
- * Experimental: only offered with Settings → Experimental on. The checks
- * live in data/submit.js. This dialog:
- *   - offers the types the assignment allows (Text / Website URL / Files)
+ * Offers the types switched on in Settings (files: "Submit from Gesso";
+ * text and URL: Experimental). The checks live in data/submit.js. This dialog:
+ *   - offers the types the assignment allows and Settings turns on (Text / Website URL / Files)
+ *   - labels the types not yet verified with a real submission (text, URL) as experimental
  *   - says plainly what will happen: attempt N (of M), late, group
  *   - files: checks type, emptiness, duplicate names and Files quota before
  *     uploading; shows per-file progress; Cancel stops uploads; failed files
@@ -30,7 +31,7 @@
    * @param {{ course: any, a: any, sub: any, userId: string, nativeUrl: string }} o
    */
   function open({ course, a, sub, userId, nativeUrl }) {
-    const el = S.eligibility(a, sub);
+    const el = S.eligibility(a, sub, undefined, S.enabledTypes(Gesso.store.get().settings));
     if (!el.ok) { Gesso.overlays.toast(el.reason || 'Can’t submit this here.', { tone: 'danger' }); return; }
     let type = el.types[0];
 
@@ -91,8 +92,12 @@
         allowed.length ? `Allowed types: ${allowed.map((/** @type {string} */ x) => `.${x}`).join(', ')}. ` : 'Any file type. ',
         'You can add several files; they’re submitted together as one attempt.'));
 
+    // Shown only while an unverified type (text, URL) is selected.
+    const experimentalNote = h('li', { class: 'sub-facts__exp' },
+      'Experimental: text and website-URL submission isn’t verified with a real Canvas submission yet. If in doubt, use "Submit in Canvas instead".');
     const setType = (/** @type {string} */ t) => {
       type = t;
+      experimentalNote.hidden = S.isVerified(t);
       textField.hidden = t !== 'online_text_entry';
       urlField.hidden = t !== 'online_url';
       filesField.hidden = t !== 'online_upload';
@@ -101,7 +106,6 @@
     };
 
     const facts = [
-      'Experimental: not yet verified with a real Canvas submission. If in doubt, use "Submit in Canvas instead".',
       `This will be attempt ${el.attempt}${el.attemptsLeft != null ? ` (${el.attemptsLeft} left including this one)` : ''}.`,
       el.late ? 'The due date has passed: Canvas will mark it late.' : null,
       el.group ? 'Group assignment: this submits for your whole group.' : null,
@@ -109,7 +113,7 @@
     ].filter(Boolean);
 
     const form = h('form', { class: 'form', novalidate: true },
-      h('ul', { class: 'sub-facts' }, facts.map((f) => h('li', null, f))),
+      h('ul', { class: 'sub-facts' }, experimentalNote, facts.map((f) => h('li', null, f))),
       el.types.length > 1 && h('div', { class: 'seg', role: 'radiogroup', 'aria-label': 'Submission type' },
         el.types.map((t) => {
           const input = /** @type {HTMLInputElement} */ (h('input', { type: 'radio', name: 'sub-type', value: t, class: 'seg__input' }));

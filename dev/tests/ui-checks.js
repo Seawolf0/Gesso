@@ -300,17 +300,26 @@
     ok(s.items.every((i) => /^https:\/\/umd\.instructure\.com\//.test(i.url)), 'absolute URLs');
   });
 
-  await check('submit here is off by default (experimental setting)', async () => {
-    await Gesso.settings.update({ experimentalSubmit: false });
+  await check('submit here is off by default; files and text/URL have separate switches', async () => {
+    await Gesso.settings.update({ experimentalSubmit: false, submitFiles: false });
     await go('/courses/103/assignments/21');
     const prim = await waitFor(() => { const b = $('[data-fkey="detail-primary"]'); return b && $('.adetail__actions') && b; }, 4000, 'primary action');
     await sleep(300); // full details loaded
     ok($('[data-fkey="detail-primary"]').tagName === 'A' && /Submit in Canvas/.test($('[data-fkey="detail-primary"]').textContent), `got ${prim.outerHTML.slice(0, 80)}`);
     await go('/settings');
-    const cb = await waitFor(() => $('[data-fkey="set-exp-submit"]'), 2000, 'experimental toggle');
-    ok(!cb.checked, 'toggle off by default');
-    cb.click();
-    await waitFor(() => Gesso.store.get().settings.experimentalSubmit === true, 1000, 'enabled');
+    const files = await waitFor(() => $('#set-submit [data-fkey="set-submit-files"]'), 2000, '"Submit from Gesso" in Submitting');
+    const exp = $('#set-experimental [data-fkey="set-exp-submit"]');
+    ok(!files.checked && !exp.checked, 'both off by default');
+    ok(!/experimental|not yet verified/i.test($('#set-submit').textContent), 'files setting carries no experimental wording');
+    ok(/not been verified|isn’t verified|verified with a real submission yet/i.test($('#set-experimental').textContent) && !/file/i.test($('#set-experimental').textContent), 'experimental: text and URL only');
+    // Files on, text/URL off: a text-only assignment still goes to Canvas.
+    files.click();
+    await waitFor(() => Gesso.store.get().settings.submitFiles === true, 1000, 'files enabled');
+    await go('/courses/103/assignments/21');
+    await waitFor(() => $('[data-fkey="detail-primary"]'), 4000, 'primary');
+    await sleep(300);
+    ok($('[data-fkey="detail-primary"]').tagName === 'A', 'text/URL assignment: Submit in Canvas while only files are on');
+    await Gesso.settings.update({ submitFiles: false, experimentalSubmit: true });
   });
 
   await check('submit here: text submission is confirmed before "Submitted"', async () => {
@@ -320,6 +329,8 @@
     btn.click();
     const dlg = await waitFor(() => $('dialog[open] form'), 1000, 'dialog');
     ok(/attempt 1/.test(dlg.textContent), 'says which attempt');
+    const note = dlg.querySelector('.sub-facts__exp');
+    ok(note && !note.hidden && /Experimental/.test(note.textContent), 'text: labeled experimental');
     const submit = dlg.querySelector('button[type="submit"]');
     submit.click();
     await waitFor(() => /Write something/.test(dlg.textContent), 1000, 'empty text rejected');
@@ -349,12 +360,13 @@
     await Gesso.settings.update({ experimentalSubmit: false });
   });
 
-  await check('submit files: wrong type refused before upload; two files upload and are confirmed', async () => {
-    await Gesso.settings.update({ experimentalSubmit: true });
+  await check('submit files ("Submit from Gesso", verified): wrong type refused before upload; two files upload and are confirmed', async () => {
+    await Gesso.settings.update({ experimentalSubmit: false, submitFiles: true });
     await go('/courses/101/assignments/1');
     const btn = await waitFor(() => { const b = $('[data-fkey="detail-primary"]'); return b && b.tagName === 'BUTTON' && b; }, 4000, 'Submit button');
     btn.click();
     const dlg = await waitFor(() => $('dialog[open] form'), 1000, 'dialog');
+    ok(dlg.querySelector('.sub-facts__exp')?.hidden === true && !/Experimental|not yet verified/i.test(dlg.querySelector('.sub-facts').innerText), 'files: no experimental label');
     const picker = dlg.querySelector('#sub-files');
     ok(picker && picker.getAttribute('accept') === '.zip,.java', `accept=${picker?.getAttribute('accept')}`);
     const add = (files) => { const dt = new DataTransfer(); files.forEach((f) => dt.items.add(f)); picker.files = dt.files; picker.dispatchEvent(new Event('change')); };
@@ -367,7 +379,7 @@
     await waitFor(() => /Canvas recorded it/.test($('dialog[open]')?.textContent || ''), 15000, 'confirmed');
     ok(/Main\.java, project\.zip/.test($('dialog[open]').textContent), 'lists the files');
     ok(window.__mockWrites.slice(before).some((w) => w.body?.submission?.submission_type === 'online_upload'), 'submitted as online_upload');
-    await Gesso.settings.update({ experimentalSubmit: false });
+    await Gesso.settings.update({ experimentalSubmit: false, submitFiles: false });
   });
 
   await check('#/debug shows no tokens or verifiers', async () => {

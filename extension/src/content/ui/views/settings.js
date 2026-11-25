@@ -11,6 +11,8 @@
  *   Grades          GPA scale (the Grades page's dialog)
  *   Courses         courses hidden from Gesso
  *   Canvas pages    Gesso button on/off, dark mode
+ *   Submitting      "Submit from Gesso" (file uploads; verified)
+ *   Experimental    text and website-URL submission (not yet verified)
  *   Keyboard        shortcut list
  *   Data            clear cached data, reset settings
  *   About           version, tagline, the trademark disclaimer
@@ -133,10 +135,15 @@
 
       nativeDarkPanel(s),
 
+      ui.panel({ title: 'Submitting', icon: 'upload', id: 'set-submit' },
+        row('Submit from Gesso',
+          'Adds "Submit" to assignments that take file uploads. Files go through Canvas’s own upload, and Gesso only says "Submitted" once Canvas shows the new attempt with exactly your files. Off by default; "Submit in Canvas" always works.',
+          h('label', { class: 'switch' }, check('set-submit-files', !!s.submitFiles, (on) => update({ submitFiles: on })), h('span', { class: 'sr-only' }, 'Submit files from Gesso')))),
+
       ui.panel({ title: 'Experimental', icon: 'sparkles', id: 'set-experimental', subtitle: 'Features not yet verified against real Canvas. Off by default.' },
-        row('Submit from Gesso (text, links, files)',
-          'Adds "Submit" to assignments that accept a text entry, website URL or file upload. Each submission is checked by re-reading it from Canvas, but no real submission has been verified yet. Leave it off for anything that matters; "Submit in Canvas" always works.',
-          h('label', { class: 'switch' }, check('set-exp-submit', !!s.experimentalSubmit, (on) => update({ experimentalSubmit: on })), h('span', { class: 'sr-only' }, 'Submit text, links and files from Gesso (experimental)')))),
+        row('Text and website-URL submission',
+          'Adds text-entry and website-URL submission to "Submit". Each one is checked by re-reading it from Canvas, but neither has been verified with a real submission yet. Leave it off for anything that matters; "Submit in Canvas" always works.',
+          h('label', { class: 'switch' }, check('set-exp-submit', !!s.experimentalSubmit, (on) => update({ experimentalSubmit: on })), h('span', { class: 'sr-only' }, 'Submit text and website URLs from Gesso (experimental)')))),
 
       ui.panel({ title: 'Keyboard', icon: 'grid', id: 'set-keys' },
         row('Shortcuts', `${isMac ? '⌘K' : 'Ctrl+K'} opens the command palette; g then d, a, c, g, o or s goes to a page.`,

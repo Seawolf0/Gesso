@@ -139,9 +139,10 @@
     if (a.locked) return h('span', { class: 'btn btn--primary', 'aria-disabled': 'true', title: 'Locked' }, icon('lock', { size: 13 }), 'Locked');
     if (!attemptsLeft) return h('span', { class: 'pill' }, 'No attempts left');
     const submitted = !!(sub?.submittedAt || a.submission?.submittedAt);
-    // Full details loaded (fresh attempt count) + a text/URL type → submit in Gesso.
-    // Experimental (Settings, off by default) until a live submission is verified.
-    if (submitCtx && Gesso.store.get().settings.experimentalSubmit && Gesso.submit.eligibility(a, sub).ok) {
+    // Full details loaded (fresh attempt count) + a type switched on in Settings → submit in Gesso.
+    // Files: "Submit from Gesso"; text/URL: Experimental. Both off by default.
+    const enabled = Gesso.submit.enabledTypes(Gesso.store.get().settings);
+    if (submitCtx && enabled.size && Gesso.submit.eligibility(a, sub, undefined, enabled).ok) {
       return h('button', { class: 'btn btn--primary', type: 'button', 'data-fkey': 'detail-primary', onClick: () => Gesso.submitUi.open({ ...submitCtx, a, sub, nativeUrl }) },
         icon('upload', { size: 13 }), submitted ? 'Resubmit' : 'Submit');
     }

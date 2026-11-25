@@ -1307,6 +1307,22 @@
     eq(SB.eligibility({ ...a, lockAt: '2026-11-20T11:00:00Z' }, null, now).reason, 'This assignment is closed for submissions.');
     eq(SB.eligibility({ ...a, unlockAt: '2026-11-25T00:00:00Z' }, null, now).ok, false);
   });
+  await test('submit: each type has its own switch; only file upload is verified', () => {
+    const now = new Date('2026-11-20T12:00:00Z');
+    const a = { layout: 'assignment', submissionTypes: ['online_upload', 'online_text_entry', 'online_url'], allowedAttempts: -1, locked: false, submission: null };
+    eq([...SB.enabledTypes({})], [], 'both off by default');
+    eq([...SB.enabledTypes({ submitFiles: true })], ['online_upload']);
+    eq([...SB.enabledTypes({ experimentalSubmit: true })].sort(), ['online_text_entry', 'online_url']);
+    eq(SB.eligibility(a, null, now, SB.enabledTypes({ submitFiles: true })).types, ['online_upload'], 'files only');
+    eq(SB.eligibility(a, null, now, SB.enabledTypes({ experimentalSubmit: true })).types, ['online_text_entry', 'online_url'], 'text and URL only');
+    const off = SB.eligibility({ ...a, submissionTypes: ['online_text_entry'] }, null, now, SB.enabledTypes({ submitFiles: true }));
+    eq([off.ok, off.reason], [false, 'Submitting this kind of work from Gesso is turned off in Settings.']);
+    eq([SB.isVerified('online_upload'), SB.isVerified('online_text_entry'), SB.isVerified('online_url')], [true, false, false]);
+    // Settings: off by default; an earlier opt-in to the old single switch keeps file submission.
+    eq(Gesso.settings.normalize({}).submitFiles, false);
+    eq(Gesso.settings.normalize({ experimentalSubmit: true }).submitFiles, true, 'migrated opt-in');
+    eq(Gesso.settings.normalize({ experimentalSubmit: true, submitFiles: false }).submitFiles, false, 'explicit off kept');
+  });
   await test('submit: text → safe HTML, plain-text comparison, URL normalization', () => {
     eq(SB.textToHtml('Hello <b>world</b> & "you"\n\nSecond\nline'), '<p>Hello &lt;b&gt;world&lt;/b&gt; &amp; &quot;you&quot;</p><p>Second<br>line</p>');
     eq(SB.plainText('<div class="x"><p>Hello &lt;b&gt;</p><p>Second<br>line</p></div>'), 'Hello <b> Second line');

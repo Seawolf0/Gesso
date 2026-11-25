@@ -1,9 +1,14 @@
 // @ts-check
 /**
  * Text, website-URL and file-upload submissions from Gesso.
- * Experimental: Settings → Experimental,
- * off by default, until a live submission is verified. Media and
- * annotations still go to Canvas.
+ * Media and annotations still go to
+ * Canvas.
+ *
+ * Each type has its own switch, both off by default (`enabledTypes`):
+ *   - file uploads: Settings → "Submit from Gesso" (`submitFiles`), verified
+ *     with a real Canvas submission
+ *   - text entry and website URL: Settings → Experimental
+ *     (`experimentalSubmit`), not yet verified with a real submission
  *
  * File uploads (`submitFiles`): the files are checked first (types the
  * assignment allows, not empty, total within the Files quota). Each one is
@@ -30,26 +35,45 @@
  */
 (() => {
   const SUPPORTED = /** @type {const} */ (['online_text_entry', 'online_url', 'online_upload']);
+  /** Types confirmed with a real Canvas submission. The others are labeled experimental. */
+  const VERIFIED = /** @type {readonly string[]} */ (['online_upload']);
+  const isVerified = (/** @type {string} */ type) => VERIFIED.includes(type);
+
+  /**
+   * The submission types these settings turn on.
+   * @param {any} settings @returns {Set<string>}
+   */
+  function enabledTypes(settings) {
+    const on = new Set();
+    if (settings?.submitFiles) on.add('online_upload');
+    if (settings?.experimentalSubmit) { on.add('online_text_entry'); on.add('online_url'); }
+    return on;
+  }
 
   // ---------------------------------------------------------------------------
   // Pure helpers
   // ---------------------------------------------------------------------------
 
   /**
-   * Can this assignment take a text/URL submission from Gesso right now?
+   * Can this assignment take a submission from Gesso right now?
    * @param {any} a  assignment detail (normalize.assignmentDetail)
    * @param {any} sub  submission detail, or null
+   * @param {Date} [now]
+   * @param {Set<string>|null} [enabled]  types switched on in Settings (enabledTypes); null = all supported
    * @returns {{ ok: boolean, types: string[], reason: string|null, attempt: number, attemptsLeft: number|null, late: boolean, group: boolean }}
    */
-  function eligibility(a, sub, now = new Date()) {
-    const types = (a?.submissionTypes || []).filter((/** @type {string} */ t) => /** @type {readonly string[]} */ (SUPPORTED).includes(t));
+  function eligibility(a, sub, now = new Date(), enabled = null) {
+    const types = (a?.submissionTypes || []).filter((/** @type {string} */ t) => /** @type {readonly string[]} */ (SUPPORTED).includes(t) && (!enabled || enabled.has(t)));
     const used = sub?.attempt ?? a?.submission?.attempt ?? 0;
     const limited = a?.allowedAttempts != null && a.allowedAttempts > 0;
     const base = { types, attempt: used + 1, attemptsLeft: limited ? Math.max(0, a.allowedAttempts - used) : null,
       late: !!(a?.dueAt && Date.parse(a.dueAt) < now.getTime()), group: !!a?.groupAssignment };
     const no = (/** @type {string} */ reason) => ({ ...base, ok: false, reason });
     if (!a || a.layout !== 'assignment') return no('Only regular assignments can be submitted here.');
-    if (!types.length) return no('This assignment takes a kind of submission Gesso can’t send (media or annotation).');
+    if (!types.length) {
+      const supported = (a?.submissionTypes || []).some((/** @type {string} */ t) => /** @type {readonly string[]} */ (SUPPORTED).includes(t));
+      return no(supported ? 'Submitting this kind of work from Gesso is turned off in Settings.' : 'This assignment takes a kind of submission Gesso can’t send (media or annotation).');
+    }
     if (a.locked) return no('This assignment is locked.');
     if (a.unlockAt && Date.parse(a.unlockAt) > now.getTime()) return no('This assignment isn’t open yet.');
     if (a.lockAt && Date.parse(a.lockAt) <= now.getTime()) return no('This assignment is closed for submissions.');
@@ -332,5 +356,5 @@
     Gesso.cache.save({ coursework }, s.meta);
   }
 
-  Gesso.submit = { SUPPORTED, eligibility, textToHtml, plainText, normalizeUrl, confirmRecorded, submit, extOf, checkFiles, sameFiles, entryFor, submitFiles, filesSpace, fmtBytes };
+  Gesso.submit = { SUPPORTED, VERIFIED, isVerified, enabledTypes, eligibility, textToHtml, plainText, normalizeUrl, confirmRecorded, submit, extOf, checkFiles, sameFiles, entryFor, submitFiles, filesSpace, fmtBytes };
 })();

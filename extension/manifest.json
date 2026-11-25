@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Gesso",
   "short_name": "Gesso",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "An unofficial dashboard for Canvas: a faster, dark-first view of your courses. Runs entirely on your Mac. Not affiliated with Instructure.",
   "icons": {
     "48": "icons/icon-48.png",
